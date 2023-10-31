@@ -26,7 +26,7 @@
 <meta property="og:site_name" content="樂只君子">
 <meta property="og:description" content="并发编程三条特性：  原子性原子性是指一个操作是不可中断的，要么全部执行成功要么全部执行失败。  可见性可见性是指当一个线程修改了共享变量后，其他线程能够立即看见这个修改。  有序性有序性是指程序指令按照预期的顺序执行而非乱序执行，乱序又分为编译器乱序和CPU执行乱序。   系统架构首先展示一幅手绘图，概略描述单核和多核时的系统架构：  Register寄存器。CPU指令执行，寄存器存放指令和数据">
 <meta property="og:locale" content="zh_CN">
-<meta property="og:image" content="https://qilu.me/2017-08-12/architecture.png">
+<meta property="og:image" content="https://qilu.me/2017/08/12/2017-08-12/architecture.png">
 <meta property="article:published_time" content="2017-08-12T05:00:00.000Z">
 <meta property="article:modified_time" content="2022-09-18T03:53:03.033Z">
 <meta property="article:author" content="Kaleo Feng">
@@ -38,7 +38,7 @@
 <meta property="article:tag" content="内存屏障">
 <meta property="article:tag" content="volatile">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:image" content="https://qilu.me/2017-08-12/architecture.png">
+<meta name="twitter:image" content="https://qilu.me/2017/08/12/2017-08-12/architecture.png">
 
 
 <link rel="canonical" href="https://qilu.me/2017/08/12/2017-08-12/">
@@ -232,7 +232,7 @@
 </li>
 </ul>
 <h2 id="系统架构"><a href="#系统架构" class="headerlink" title="系统架构"></a>系统架构</h2><p>首先展示一幅手绘图，概略描述单核和多核时的系统架构：</p>
-<p><img src="/2017-08-12/architecture.png" alt="architecture"></p>
+<p><img src="/2017/08/12/2017-08-12/architecture.png" alt="architecture"></p>
 <h3 id="Register"><a href="#Register" class="headerlink" title="Register"></a>Register</h3><p>寄存器。CPU指令执行，寄存器存放指令和数据，线程切换会进行寄存器保存和恢复操作。对线程而言，寄存器可以认为是私有的，即线程“工作内存”。多线程下，指令并发执行，操作各自工作内存，产生了原子性问题。</p>
 <h3 id="Cache"><a href="#Cache" class="headerlink" title="Cache"></a>Cache</h3><p>CPU缓存。CPU缓存提升了数据加载速度的同时，也带来了缓存一致性问题，该问题通过MESI协议来解决。但MESI协议下，一个CPU可能需要等待另一个CPU响应后才能继续执行，导致了阻塞，影响性能。所以增加了StoreBuffer和InvalidateQueue，也就是需要store时先放到StoreBuffer里，然后继续执行下一条指令，等到其他CPU响应返回后再处理对应store；收到invalidate通知时也不立即处理，而是先放到InvalidateQueue，并立即给予对方响应，然后等到合适时机再一起处理。这种优化提升了CPU执行能力，但也使得MESI协议的操作无法立即得到处理，出现异步，产生了可见性和有序性问题。</p>
 <h3 id="Memory"><a href="#Memory" class="headerlink" title="Memory"></a>Memory</h3><p>内存。</p>

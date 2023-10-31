@@ -26,9 +26,9 @@
 <meta property="og:site_name" content="樂只君子">
 <meta property="og:description" content="在TCP&#x2F;IP协议族中，链路层主要有三个目的:  为IP模块发送和接受IP数据报  为ARP模块发送ARP请求和接收ARP应答  为RARP模块发送RARP请求和接收RARP应答   网络层的数据到达链路层，会被加上帧首部和帧尾部封装成以太网帧。不同的协议标准定义了不同大小和格式的帧首部，但通常都会包含6个字节的目的MAC地址和6个字节的源MAC地址。帧尾部FCS是采用CRC的帧校验序列">
 <meta property="og:locale" content="zh_CN">
-<meta property="og:image" content="https://qilu.me/2014-06-08/ethernet_protocal.jpg">
-<meta property="og:image" content="https://qilu.me/2014-06-08/tcpdump_sync_and_ack.png">
-<meta property="og:image" content="https://qilu.me/2014-06-08/tcpdump_arp.png">
+<meta property="og:image" content="https://qilu.me/2014/06/08/2014-06-08/ethernet_protocal.jpg">
+<meta property="og:image" content="https://qilu.me/2014/06/08/2014-06-08/tcpdump_sync_and_ack.png">
+<meta property="og:image" content="https://qilu.me/2014/06/08/2014-06-08/tcpdump_arp.png">
 <meta property="article:published_time" content="2014-06-08T13:00:00.000Z">
 <meta property="article:modified_time" content="2022-09-18T03:53:03.019Z">
 <meta property="article:author" content="Kaleo Feng">
@@ -37,7 +37,7 @@
 <meta property="article:tag" content="链路层">
 <meta property="article:tag" content="以太网">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:image" content="https://qilu.me/2014-06-08/ethernet_protocal.jpg">
+<meta name="twitter:image" content="https://qilu.me/2014/06/08/2014-06-08/ethernet_protocal.jpg">
 
 
 <link rel="canonical" href="https://qilu.me/2014/06/08/2014-06-08/">
@@ -230,7 +230,7 @@
 </li>
 </ol>
 <p>网络层的数据到达链路层，会被加上帧首部和帧尾部封装成以太网帧。不同的协议标准定义了不同大小和格式的帧首部，但通常都会包含6个字节的目的MAC地址和6个字节的源MAC地址。帧尾部FCS是采用CRC的帧校验序列。帧首部前面还有一个8字节的前导字，但通常不将其考虑在内。</p>
-<p>下图（来自网络）展示了最常见的两种协议的帧格式，分别是802.2&#x2F;802.3 SNAP和Ethernet II。<br><img src="/2014-06-08/ethernet_protocal.jpg" alt="Image Title"></p>
+<p>下图（来自网络）展示了最常见的两种协议的帧格式，分别是802.2&#x2F;802.3 SNAP和Ethernet II。<br><img src="/2014/06/08/2014-06-08/ethernet_protocal.jpg" alt="Image Title"></p>
 <p>Ethernet II:  帧首部包含6个字节的目的MAC地址、6个字节的源MAC地址和2个字节的类型域。</p>
 <ul>
 <li>类型域：定义了上层协议类型，如0x0800是IP协议，0x0806是ARP协议。</li>
@@ -256,9 +256,9 @@
 <li><p>PMTU：数据传输可能经过多个网络，每个网络的的链路层MTU可能不同，其中的最小值，被称作路径最大传输单元。如果传输的数据大于PMTU，则会在传输过程中被分片或者丢弃。</p>
 </li>
 </ul>
-<p>下面是使用tcpdump捕获到的TCP三次握手数据包，-e输出了链路层的头部信息，不包括4字节的帧尾部FCS。<br><img src="/2014-06-08/tcpdump_sync_and_ack.png" alt="Image Title"></p>
+<p>下面是使用tcpdump捕获到的TCP三次握手数据包，-e输出了链路层的头部信息，不包括4字节的帧尾部FCS。<br><img src="/2014/06/08/2014-06-08/tcpdump_sync_and_ack.png" alt="Image Title"></p>
 <p>观察第一个数据包。10:14:43.153311是操作时间，8c:89:a5:65:0a:fa是源MAC地址，d2:b3:a8:28:32:b0是目的MAC地址，0x0800表明上层采用IPv4协议，length 66表示帧首部和数据域总长度为66字节，帧首部是14字节，所以数据域长度为52字节，即IP分组长度。</p>
-<p>再看一个ARP的例子。<br><img src="/2014-06-08/tcpdump_arp.png" alt="Image Title"></p>
+<p>再看一个ARP的例子。<br><img src="/2014/06/08/2014-06-08/tcpdump_arp.png" alt="Image Title"></p>
 <p>8c:89:a5:88:1e:b8是源MAC地址，ff:ff:ff:ff:ff:ff是目的MAC地址说明是广播，0x0806表明上层采用ARP协议，length 60表示帧首部和数据域总长度为60字节，帧首部是14字节，所以数据域长度为46字节。APR数据包长度固定是28字节，后面18字节全为0是填充数据，以符合最小帧长度要求。</p>
 <p>这个APR包是IP为192.168.3.36的主机A向所在子网广播请求IP为192.168.3.44的主机B的MAC地址。主机B收到此广播后，会将自己的MAC地址利用ARP响应包传给主机A，并更新自己的ARP缓存，也就是同时将主机A的IP地址与MAC地址对保存起来，供以后使用。主机A获得主机B的MAC地址后，就可以与主机B通信了。同时，主机A也将主机B的IP地址与MAC地址对保存在自己的ARP缓存内。</p>
 <p>以太网使用MAC地址来标识主机，链路层提供两个相邻节点间的数据传输。网络层的数据包中包含目的IP地址，当需要传输时，链路层首先在ARP缓存中查找IP地址对应的MAC地址，如果找不到则触发ARP请求将IP地址转换成MAC地址。需要注意的是，如果目的IP与本机在同一个子网，得到的MAC地址即是目的主机地址，否则是网关地址。在数据帧传输过程中，MAC地址会不断改变，源MAC地址始终是上一个主机&#x2F;路由器的地址，目的MAC地址是下一个主机&#x2F;路由器的地址，直到到达目的主机或被丢弃。</p>

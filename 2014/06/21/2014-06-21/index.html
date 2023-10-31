@@ -26,8 +26,8 @@
 <meta property="og:site_name" content="樂只君子">
 <meta property="og:description" content="网络层是TCP&#x2F;IP层次模型的第二层，主要功能是路径选择、拥塞控制和网际互连。IP协议是网络层最主要的协议，提供路由功能，并对传输层的数据进行重新组装，以适应不同网络对数据包大小的要求，实现两个节点间的通信。协议有IPv4和IPv6两个版本，现在最通用的是IPv4。 IP和链路层之间传送的数据单元被称作分组，分组既可以是一个IP数据报，也可以是数据报的一个分片。封装IP分组的一个过程就是">
 <meta property="og:locale" content="zh_CN">
-<meta property="og:image" content="https://qilu.me/2014-06-21/ip.png">
-<meta property="og:image" content="https://qilu.me/2014-06-21/tcpdump_sync_and_ack.png">
+<meta property="og:image" content="https://qilu.me/2014/06/21/2014-06-21/ip.png">
+<meta property="og:image" content="https://qilu.me/2014/06/21/2014-06-21/tcpdump_sync_and_ack.png">
 <meta property="article:published_time" content="2014-06-21T09:00:00.000Z">
 <meta property="article:modified_time" content="2022-09-18T03:53:03.020Z">
 <meta property="article:author" content="Kaleo Feng">
@@ -36,7 +36,7 @@
 <meta property="article:tag" content="IP">
 <meta property="article:tag" content="网络层">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:image" content="https://qilu.me/2014-06-21/ip.png">
+<meta name="twitter:image" content="https://qilu.me/2014/06/21/2014-06-21/ip.png">
 
 
 <link rel="canonical" href="https://qilu.me/2014/06/21/2014-06-21/">
@@ -220,7 +220,7 @@
     
     
     <div class="post-body" itemprop="articleBody"><p>网络层是TCP&#x2F;IP层次模型的第二层，主要功能是路径选择、拥塞控制和网际互连。IP协议是网络层最主要的协议，提供路由功能，并对传输层的数据进行重新组装，以适应不同网络对数据包大小的要求，实现两个节点间的通信。协议有IPv4和IPv6两个版本，现在最通用的是IPv4。</p>
-<p>IP和链路层之间传送的数据单元被称作分组，分组既可以是一个IP数据报，也可以是数据报的一个分片。封装IP分组的一个过程就是添加IP首部，其格式如下（图片来自网络）。<br><img src="/2014-06-21/ip.png" alt="Image Title"></p>
+<p>IP和链路层之间传送的数据单元被称作分组，分组既可以是一个IP数据报，也可以是数据报的一个分片。封装IP分组的一个过程就是添加IP首部，其格式如下（图片来自网络）。<br><img src="/2014/06/21/2014-06-21/ip.png" alt="Image Title"></p>
 <ul>
 <li><p>版本：4位，IP协议版本。值一般为4，即采用IPv4版本。</p>
 </li>
@@ -251,7 +251,7 @@
 <li><p>可选字段：0-40字节，使用较少，暂不赘述。</p>
 </li>
 </ul>
-<p>依然以tcpdump捕获到的TCP三次握手数据包为例。<br><img src="/2014-06-21/tcpdump_sync_and_ack.png" alt="Image Title"></p>
+<p>依然以tcpdump捕获到的TCP三次握手数据包为例。<br><img src="/2014/06/21/2014-06-21/tcpdump_sync_and_ack.png" alt="Image Title"></p>
 <p>观察第一个数据包的前20字节。</p>
 <ul>
 <li><p>4500：4表示IPv4版本，5表示首部长度为20（5*4）字节，没有可选项，00表示无区分服务和显式拥塞通知。</p>

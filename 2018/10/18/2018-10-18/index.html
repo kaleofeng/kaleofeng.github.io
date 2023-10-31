@@ -26,9 +26,9 @@
 <meta property="og:site_name" content="樂只君子">
 <meta property="og:description" content="AQS(AbstractQueuedSynchronizer)是Java并发编程中最重要的工具之一，基于其实现了ReentrantLock、CountDownLatch、Semaphore和ReentrantReadWriteLock等，可以说是锁的基石。 在深入AQS细节之前，先介绍另外一个基础工具，AQS使用其来控制线程。 LockSupport顾名思义，是实现锁的辅助工具，其本身与锁无关，只">
 <meta property="og:locale" content="zh_CN">
-<meta property="og:image" content="https://qilu.me/2018-10-18/aqs_shared.png">
-<meta property="og:image" content="https://qilu.me/2018-10-18/1.png">
-<meta property="og:image" content="https://qilu.me/2018-10-18/2.png">
+<meta property="og:image" content="https://qilu.me/2018/10/18/2018-10-18/aqs_shared.png">
+<meta property="og:image" content="https://qilu.me/2018/10/18/2018-10-18/1.png">
+<meta property="og:image" content="https://qilu.me/2018/10/18/2018-10-18/2.png">
 <meta property="article:published_time" content="2018-10-18T13:00:00.000Z">
 <meta property="article:modified_time" content="2022-09-18T03:53:03.038Z">
 <meta property="article:author" content="Kaleo Feng">
@@ -38,7 +38,7 @@
 <meta property="article:tag" content="锁">
 <meta property="article:tag" content="AQS">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:image" content="https://qilu.me/2018-10-18/aqs_shared.png">
+<meta name="twitter:image" content="https://qilu.me/2018/10/18/2018-10-18/aqs_shared.png">
 
 
 <link rel="canonical" href="https://qilu.me/2018/10/18/2018-10-18/">
@@ -247,7 +247,7 @@
 <p>再看一下三个关键方法源码。</p>
 <figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">class</span> <span class="title class_">Node</span> &#123;</span><br><span class="line">        <span class="comment">/** Marker to indicate a node is waiting in shared mode */</span></span><br><span class="line">        <span class="keyword">static</span> <span class="keyword">final</span> <span class="type">Node</span> <span class="variable">SHARED</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">Node</span>();</span><br><span class="line">        <span class="comment">/** Marker to indicate a node is waiting in exclusive mode */</span></span><br><span class="line">        <span class="keyword">static</span> <span class="keyword">final</span> <span class="type">Node</span> <span class="variable">EXCLUSIVE</span> <span class="operator">=</span> <span class="literal">null</span>;</span><br><span class="line"></span><br><span class="line">        <span class="comment">/** waitStatus value to indicate thread has cancelled. */</span></span><br><span class="line">        <span class="keyword">static</span> <span class="keyword">final</span> <span class="type">int</span> <span class="variable">CANCELLED</span> <span class="operator">=</span>  <span class="number">1</span>;</span><br><span class="line">        <span class="comment">/** waitStatus value to indicate successor&#x27;s thread needs unparking. */</span></span><br><span class="line">        <span class="keyword">static</span> <span class="keyword">final</span> <span class="type">int</span> <span class="variable">SIGNAL</span>    <span class="operator">=</span> -<span class="number">1</span>;</span><br><span class="line">        <span class="comment">/** waitStatus value to indicate thread is waiting on condition. */</span></span><br><span class="line">        <span class="keyword">static</span> <span class="keyword">final</span> <span class="type">int</span> <span class="variable">CONDITION</span> <span class="operator">=</span> -<span class="number">2</span>;</span><br><span class="line">        <span class="comment">/**</span></span><br><span class="line"><span class="comment">         * waitStatus value to indicate the next acquireShared should</span></span><br><span class="line"><span class="comment">         * unconditionally propagate.</span></span><br><span class="line"><span class="comment">         */</span></span><br><span class="line">        <span class="keyword">static</span> <span class="keyword">final</span> <span class="type">int</span> <span class="variable">PROPAGATE</span> <span class="operator">=</span> -<span class="number">3</span>;</span><br></pre></td></tr></table></figure>
 
-<p><img src="/2018-10-18/aqs_shared.png" alt="shared"></p>
+<p><img src="/2018/10/18/2018-10-18/aqs_shared.png" alt="shared"></p>
 <p>上面提到过，共享模式下，可以有多个线程占有资源，采用从头结点依次唤醒后继节点的方式，所以 <code>acquireShared</code> 和 <code>releaseShared</code> 都会调用到 <code>doReleaseShared</code>，该方法即用来执行唤醒后继节点的操作。</p>
 <p>根据源码，两个模板方法有以下含义。</p>
 <ul>
@@ -272,7 +272,7 @@
 <p>我们构造若干并发场景，尝试解答。</p>
 <h5 id="场景一"><a href="#场景一" class="headerlink" title="场景一"></a>场景一</h5><p>假定此时，无问题1-4中的所有元素。</p>
 <p>此时等待队列如图所示：</p>
-<p><img src="/2018-10-18/1.png" alt="scene1"></p>
+<p><img src="/2018/10/18/2018-10-18/1.png" alt="scene1"></p>
 <ol>
 <li><p>T<sub>A</sub> <code>releaseShared</code> 调用 <code>tryReleaseShared</code> 释放资源成功，执行 <code>doReleaseShared</code>，此时 <code>h = head, h.waitStatus = SIGNAL</code>，CAS成功，<code>h.waitStatus = 0</code>，调用<code>unparkSuccessor</code> 唤醒后继节点。</p>
 </li>
@@ -329,7 +329,7 @@
 <p>这样就毫无破绽万事大吉了吗？</p>
 <h5 id="场景五"><a href="#场景五" class="headerlink" title="场景五"></a>场景五</h5><p>假定此时，有问题1-3中的元素，无问题4中的元素，即不会获取新head并检查其waiStatus，对应代码中的 <code>(h = head) == null || h.waitStatus &lt; 0</code>（旧head的waitStatus检查的必要性已经在上述场景中证明过了）。</p>
 <p>此时等待队列如图所示：</p>
-<p><img src="/2018-10-18/2.png" alt="scene2"></p>
+<p><img src="/2018/10/18/2018-10-18/2.png" alt="scene2"></p>
 <ol>
 <li><p>T<sub>A</sub> <code>releaseShared</code> 调用 <code>tryReleaseShared</code> 释放资源成功，执行 <code>doReleaseShared</code>，此时 <code>h = head, h.waitStatus = SIGNAL</code>，CAS成功，<code>h.waitStatus = 0</code>，调用<code>unparkSuccessor</code> 唤醒后继节点。</p>
 </li>

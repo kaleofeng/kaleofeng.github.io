@@ -26,10 +26,10 @@
 <meta property="og:site_name" content="樂只君子">
 <meta property="og:description" content="五一放假，外面据说人山人海，也懒得出去。在家继续练习烹饪，编写代码，另外把想了些日子的独立博客搭了起来。 之前建过一个博客，买了个主机空间，部署了Wordpress，开始还有兴致，后来就慢慢懒得写了，没能坚持下去。写东西比想东西要难，脑袋里千回百转，可要用语言描述出来，却很耗时间和考验功力。 最近越来越希望跟人交流想法，分享自己的知识和经历，于是又生起了写博客的心思。不想再用之前的Wordpres">
 <meta property="og:locale" content="zh_CN">
-<meta property="og:image" content="https://qilu.me/2014-05-02/godaddy_qilu_me.png">
-<meta property="og:image" content="https://qilu.me/2014-05-02/dnspod_qilu_me.png">
-<meta property="og:image" content="https://qilu.me/2014-05-02/nslookup_qilu_me.png">
-<meta property="og:image" content="https://qilu.me/2014-05-02/dig_qilu_me.png">
+<meta property="og:image" content="https://qilu.me/2014/05/02/2014-05-02/godaddy_qilu_me.png">
+<meta property="og:image" content="https://qilu.me/2014/05/02/2014-05-02/dnspod_qilu_me.png">
+<meta property="og:image" content="https://qilu.me/2014/05/02/2014-05-02/nslookup_qilu_me.png">
+<meta property="og:image" content="https://qilu.me/2014/05/02/2014-05-02/dig_qilu_me.png">
 <meta property="article:published_time" content="2014-05-02T09:00:00.000Z">
 <meta property="article:modified_time" content="2022-09-18T03:53:03.016Z">
 <meta property="article:author" content="Kaleo Feng">
@@ -38,7 +38,7 @@
 <meta property="article:tag" content="Godaddy">
 <meta property="article:tag" content="博客">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:image" content="https://qilu.me/2014-05-02/godaddy_qilu_me.png">
+<meta name="twitter:image" content="https://qilu.me/2014/05/02/2014-05-02/godaddy_qilu_me.png">
 
 
 <link rel="canonical" href="https://qilu.me/2014/05/02/2014-05-02/">
@@ -225,10 +225,10 @@
 <p>之前建过一个博客，买了个主机空间，部署了Wordpress，开始还有兴致，后来就慢慢懒得写了，没能坚持下去。写东西比想东西要难，脑袋里千回百转，可要用语言描述出来，却很耗时间和考验功力。</p>
 <p>最近越来越希望跟人交流想法，分享自己的知识和经历，于是又生起了写博客的心思。不想再用之前的Wordpress，慢且繁冗，刚好发现了<a target="_blank" rel="noopener" href="https://farbox.com/">Farbox</a>+<a target="_blank" rel="noopener" href="https://dropbox.com/">Dropbox</a>方案，不需要折腾空间，采用Markdown，简单纯粹，正符合现在的喜好。</p>
 <p>搭建过程还是很简便的，网上有不少文章讲解，官网也有文档。</p>
-<p>我在<a target="_blank" rel="noopener" href="https://godaddy.com/">Godaddy</a>上有两个域名，都是指向之前的那个博客，建了这个后，那个也就废弃了。大概是在大陆的原因，登Godaddy非常慢，管理起来很费劲。于是在Godaddy偶尔不抽风的时候，赶紧把域名的Nameserver都指向了国内的<a target="_blank" rel="noopener" href="https://dnspod.cn/">Dnspod</a>，这样之后就可以在Dnspod上修改域名了。<br><img src="/2014-05-02/godaddy_qilu_me.png" alt="Image Title"></p>
-<p>Dnspod上要做的，就是建立CName，指向这个博客的Farbox地址。<br><img src="/2014-05-02/dnspod_qilu_me.png" alt="Image Title"></p>
-<p>域名修改后，生效需要一些时间。Dnspod服务器实时更新，但由于全球各地DNS服务器有缓存，短则几分钟，长则数小时才可用。要查看域名指向是否正确，可以用<strong>nslookup</strong>命令，Windows和Linux都支持。<br><img src="/2014-05-02/nslookup_qilu_me.png" alt="Image Title"><br>上面的是查询的DNS服务器，我没有使用ISP默认的，而是使用了中华电信的168.95.192.1和168.95.192.2；下面是查询的结果，可以看到，域名<strong>qilu.me</strong>已经被正确解析成了<strong>metazion.farbox.com</strong>。</p>
-<p>Linux下还可以用<strong>dig</strong>命令，有更详细的解析过程。<br><img src="/2014-05-02/dig_qilu_me.png" alt="Image Title"><br>从上到下依次是查询根域名服务器，查询.me顶级域名服务器，查询Godaddy指向的Dnspod的Nameserver，查到<strong>qilu.me</strong>的CName记录<strong>metazion.farbox.com</strong>。</p>
+<p>我在<a target="_blank" rel="noopener" href="https://godaddy.com/">Godaddy</a>上有两个域名，都是指向之前的那个博客，建了这个后，那个也就废弃了。大概是在大陆的原因，登Godaddy非常慢，管理起来很费劲。于是在Godaddy偶尔不抽风的时候，赶紧把域名的Nameserver都指向了国内的<a target="_blank" rel="noopener" href="https://dnspod.cn/">Dnspod</a>，这样之后就可以在Dnspod上修改域名了。<br><img src="/2014/05/02/2014-05-02/godaddy_qilu_me.png" alt="Image Title"></p>
+<p>Dnspod上要做的，就是建立CName，指向这个博客的Farbox地址。<br><img src="/2014/05/02/2014-05-02/dnspod_qilu_me.png" alt="Image Title"></p>
+<p>域名修改后，生效需要一些时间。Dnspod服务器实时更新，但由于全球各地DNS服务器有缓存，短则几分钟，长则数小时才可用。要查看域名指向是否正确，可以用<strong>nslookup</strong>命令，Windows和Linux都支持。<br><img src="/2014/05/02/2014-05-02/nslookup_qilu_me.png" alt="Image Title"><br>上面的是查询的DNS服务器，我没有使用ISP默认的，而是使用了中华电信的168.95.192.1和168.95.192.2；下面是查询的结果，可以看到，域名<strong>qilu.me</strong>已经被正确解析成了<strong>metazion.farbox.com</strong>。</p>
+<p>Linux下还可以用<strong>dig</strong>命令，有更详细的解析过程。<br><img src="/2014/05/02/2014-05-02/dig_qilu_me.png" alt="Image Title"><br>从上到下依次是查询根域名服务器，查询.me顶级域名服务器，查询Godaddy指向的Dnspod的Nameserver，查到<strong>qilu.me</strong>的CName记录<strong>metazion.farbox.com</strong>。</p>
 <p>最后还有一件要做的事，就是在Farbox上绑定多域名，如本例可绑定<strong>qilu.me</strong>、<strong><a target="_blank" rel="noopener" href="http://www.qilu.me/">www.qilu.me</a></strong>等，具体操作可以参考官方文档。</p>
 
     </div>

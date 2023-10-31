@@ -26,9 +26,9 @@
 <meta property="og:site_name" content="樂只君子">
 <meta property="og:description" content="TCP&#x2F;IP协议族中，网络层协议和传输层协议有明显的分工：前者提供点到点通信，后者提供端到端通信。TCP协议是传输层应用最广泛的协议，通过三次握手和四次挥手，建立面向连接的、可靠的、全双工的字节流传输服务，实现运行于不同主机的两个应用程序间的通信。 应用层数据采用TCP协议传输，会被封装添加TCP首部，然后交给网络层。TCP首部格式如下（图片来自网络）。  源端口号：2个字节，发送端端口">
 <meta property="og:locale" content="zh_CN">
-<meta property="og:image" content="https://qilu.me/2014-07-04/tcp.png">
-<meta property="og:image" content="https://qilu.me/2014-07-04/tcp_options.png">
-<meta property="og:image" content="https://qilu.me/2014-07-04/tcpdump_sync_and_ack.png">
+<meta property="og:image" content="https://qilu.me/2014/07/04/2014-07-04/tcp.png">
+<meta property="og:image" content="https://qilu.me/2014/07/04/2014-07-04/tcp_options.png">
+<meta property="og:image" content="https://qilu.me/2014/07/04/2014-07-04/tcpdump_sync_and_ack.png">
 <meta property="article:published_time" content="2014-07-04T12:00:00.000Z">
 <meta property="article:modified_time" content="2022-09-18T03:53:03.021Z">
 <meta property="article:author" content="Kaleo Feng">
@@ -37,7 +37,7 @@
 <meta property="article:tag" content="TCP">
 <meta property="article:tag" content="传输层">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:image" content="https://qilu.me/2014-07-04/tcp.png">
+<meta name="twitter:image" content="https://qilu.me/2014/07/04/2014-07-04/tcp.png">
 
 
 <link rel="canonical" href="https://qilu.me/2014/07/04/2014-07-04/">
@@ -221,7 +221,7 @@
     
     
     <div class="post-body" itemprop="articleBody"><p>TCP&#x2F;IP协议族中，网络层协议和传输层协议有明显的分工：前者提供点到点通信，后者提供端到端通信。TCP协议是传输层应用最广泛的协议，通过三次握手和四次挥手，建立面向连接的、可靠的、全双工的字节流传输服务，实现运行于不同主机的两个应用程序间的通信。</p>
-<p>应用层数据采用TCP协议传输，会被封装添加TCP首部，然后交给网络层。TCP首部格式如下（图片来自网络）。<br><img src="/2014-07-04/tcp.png" alt="Image Title"></p>
+<p>应用层数据采用TCP协议传输，会被封装添加TCP首部，然后交给网络层。TCP首部格式如下（图片来自网络）。<br><img src="/2014/07/04/2014-07-04/tcp.png" alt="Image Title"></p>
 <ul>
 <li><p>源端口号：2个字节，发送端端口号。</p>
 </li>
@@ -256,7 +256,7 @@
 <li><p>紧急指针：2个字节，标记紧急数据在数据字段中的位置。</p>
 </li>
 </ul>
-<p>TCP首部选项是变长的可选信息，长度必须为4字节的整数倍，不足则填充，最大40字节。常见的选项有7种，如下所示（图片与均来自网络）。<br><img src="/2014-07-04/tcp_options.png" alt="Image Title"></p>
+<p>TCP首部选项是变长的可选信息，长度必须为4字节的整数倍，不足则填充，最大40字节。常见的选项有7种，如下所示（图片与均来自网络）。<br><img src="/2014/07/04/2014-07-04/tcp_options.png" alt="Image Title"></p>
 <p>kind是选项类型，length是选项长度，均是1个字节，后面是选项信息，部分内容参考其他文章。</p>
 <ul>
 <li><p>kind&#x3D;0：选项表结束。</p>
@@ -274,7 +274,7 @@
 <li><p>kind&#x3D;8：时间戳选项。该选项提供了较为准确的计算通信双方之间的RTT（Round Trip Time）的方法，从而为TCP流量控制提供重要信息。</p>
 </li>
 </ul>
-<p>再次以tcpdump捕获到的TCP三次握手数据包为例。<br><img src="/2014-07-04/tcpdump_sync_and_ack.png" alt="Image Title"></p>
+<p>再次以tcpdump捕获到的TCP三次握手数据包为例。<br><img src="/2014/07/04/2014-07-04/tcpdump_sync_and_ack.png" alt="Image Title"></p>
 <p>首先分析第一个包。IP数据报长度为52字节，TCP报文段长度为32字节。只看TCP报文段部分。</p>
 <ul>
 <li><p>d0dc：源端口为53468。</p>

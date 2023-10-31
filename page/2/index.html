@@ -158,7 +158,7 @@
   
 
   <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="">
-    <link itemprop="mainEntityOfPage" href="https://qilu.me/2019/09/03/2019-09-03/">
+    <link itemprop="mainEntityOfPage" href="https://qilu.me/2023/04/08/2023-04-08/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.gif">
@@ -176,7 +176,7 @@
     </span>
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
-          <a href="/2019/09/03/2019-09-03/" class="post-title-link" itemprop="url">HotSpot JVM源码分析 - 方法调用与解释执行（3）：由invoke指令看如何将符号引用解析成直接引用</a>
+          <a href="/2023/04/08/2023-04-08/" class="post-title-link" itemprop="url">UE4构建时未定义的引用的链接问题</a>
         </h2>
 
         <div class="post-meta-container">
@@ -187,544 +187,7 @@
       </span>
       <span class="post-meta-item-text">发表于</span>
 
-      <time title="创建时间：2019-09-03 16:30:00" itemprop="dateCreated datePublished" datetime="2019-09-03T16:30:00+08:00">2019-09-03</time>
-    </span>
-    <span class="post-meta-item">
-      <span class="post-meta-item-icon">
-        <i class="far fa-folder"></i>
-      </span>
-      <span class="post-meta-item-text">分类于</span>
-        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-          <a href="/categories/Lore/" itemprop="url" rel="index"><span itemprop="name">Lore</span></a>
-        </span>
-    </span>
-
-  
-</div>
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-          <p>本系列文章基于 <strong>OpenJDK 9</strong>，聚焦 <strong>x86</strong> 平台。</p>
-<p>本文以 <code>invokevirtual</code> 指令为例，分析 HotSpot JVM 解释器如何从 <strong>符号引用</strong> 解析出 <strong>直接引用</strong> 信息。</p>
-<h2 id="正文"><a href="#正文" class="headerlink" title="正文"></a>正文</h2><p>文接上回。</p>
-<p>继续看下面这段源码（<em>openjdk\hotspot\src\share\vm\interpreter\linkResolver.cpp</em>）：</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">void</span> LinkResolver::resolve_invokevirtual(CallInfo&amp; result, Handle recv,</span><br><span class="line">                                          const constantPoolHandle&amp; pool, <span class="type">int</span> index,</span><br><span class="line">                                          TRAPS) &#123;</span><br><span class="line"></span><br><span class="line">  LinkInfo <span class="title function_">link_info</span><span class="params">(pool, index, CHECK)</span>;</span><br><span class="line">  KlassHandle <span class="title function_">recvrKlass</span> <span class="params">(THREAD, recv.is_null()</span> ? (Klass*)NULL : recv-&gt;klass());</span><br><span class="line">  resolve_virtual_call(result, recv, recvrKlass, link_info, <span class="comment">/*check_null_or_abstract*/</span><span class="literal">true</span>, CHECK);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>上篇文章讲解了第 <em>1</em> 行代码，用以从操作数解析出 <strong>符号引用</strong> 信息。</p>
-<p>本文关注第 <em>3</em> 行代码：</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">resolve_virtual_call(result, recv, recvrKlass, link_info, <span class="comment">/*check_null_or_abstract*/</span><span class="literal">true</span>, CHECK);</span><br></pre></td></tr></table></figure>
-
-<p>即用以将 <strong>符号引用</strong> 解析成 <strong>直接引用</strong>。</p>
-<p>其实现如下：</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">void</span> LinkResolver::resolve_virtual_call(CallInfo&amp; result, Handle recv, KlassHandle receiver_klass,</span><br><span class="line">                                        const LinkInfo&amp; link_info,</span><br><span class="line">                                        bool check_null_and_abstract, TRAPS) &#123;</span><br><span class="line">  <span class="type">methodHandle</span> <span class="variable">resolved_method</span> <span class="operator">=</span> linktime_resolve_virtual_method(link_info, CHECK);</span><br><span class="line">  runtime_resolve_virtual_method(result, resolved_method,</span><br><span class="line">                                 link_info.resolved_klass(),</span><br><span class="line">                                 recv, receiver_klass,</span><br><span class="line">                                 check_null_and_abstract, CHECK);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>可以看到，依次调用了链接时和运行时的解析方法。</p>
-<h3 id="链接时解析"><a href="#链接时解析" class="headerlink" title="链接时解析"></a>链接时解析</h3><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">methodHandle LinkResolver::linktime_resolve_virtual_method(const LinkInfo&amp; link_info,</span><br><span class="line">                                                           TRAPS) &#123;</span><br><span class="line">  <span class="comment">// normal method resolution</span></span><br><span class="line">  <span class="type">methodHandle</span> <span class="variable">resolved_method</span> <span class="operator">=</span> resolve_method(link_info, Bytecodes::_invokevirtual, CHECK_NULL);</span><br><span class="line"></span><br><span class="line">  <span class="keyword">assert</span>(resolved_method-&gt;name() != vmSymbols::object_initializer_name(), <span class="string">&quot;should have been checked in verifier&quot;</span>);</span><br><span class="line">  <span class="keyword">assert</span>(resolved_method-&gt;name() != vmSymbols::class_initializer_name (), <span class="string">&quot;should have been checked in verifier&quot;</span>);</span><br><span class="line"></span><br><span class="line">  <span class="comment">// check if private interface method</span></span><br><span class="line">  <span class="type">KlassHandle</span> <span class="variable">resolved_klass</span> <span class="operator">=</span> link_info.resolved_klass();</span><br><span class="line">  <span class="type">KlassHandle</span> <span class="variable">current_klass</span> <span class="operator">=</span> link_info.current_klass();</span><br><span class="line"></span><br><span class="line">  <span class="comment">// This is impossible, if resolve_klass is an interface, we&#x27;ve thrown icce in resolve_method</span></span><br><span class="line">  ...</span><br><span class="line"></span><br><span class="line">  <span class="comment">// check if not static</span></span><br><span class="line">  ...</span><br><span class="line"></span><br><span class="line">  <span class="keyword">return</span> resolved_method;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>先调用 <code>resolve_method</code> 方法解析出 <strong>方法句柄</strong>，后面又做了一系列合法性检查。</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line">methodHandle LinkResolver::resolve_method(const LinkInfo&amp; link_info,</span><br><span class="line">                                          Bytecodes::Code code, TRAPS) &#123;</span><br><span class="line"></span><br><span class="line">  Handle nested_exception;</span><br><span class="line">  <span class="type">KlassHandle</span> <span class="variable">resolved_klass</span> <span class="operator">=</span> link_info.resolved_klass();</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 1. For invokevirtual, cannot call an interface method</span></span><br><span class="line">  ...</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 2. check constant pool tag for called method - must be JVM_CONSTANT_Methodref</span></span><br><span class="line">  ...</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 3. lookup method in resolved klass and its super klasses</span></span><br><span class="line">  <span class="type">methodHandle</span> <span class="variable">resolved_method</span> <span class="operator">=</span> lookup_method_in_klasses(link_info, <span class="literal">true</span>, <span class="literal">false</span>, CHECK_NULL);</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 4. lookup method in all the interfaces implemented by the resolved klass</span></span><br><span class="line">  <span class="keyword">if</span> (resolved_method.is_null() &amp;&amp; !resolved_klass-&gt;is_array_klass()) &#123; <span class="comment">// not found in the class hierarchy</span></span><br><span class="line">    resolved_method = lookup_method_in_interfaces(link_info, CHECK_NULL);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (resolved_method.is_null()) &#123;</span><br><span class="line">      <span class="comment">// JSR 292:  see if this is an implicitly generated method MethodHandle.linkToVirtual(*...), etc</span></span><br><span class="line">      resolved_method = lookup_polymorphic_method(link_info, (Handle*)NULL, (Handle*)NULL, THREAD);</span><br><span class="line">      <span class="keyword">if</span> (HAS_PENDING_EXCEPTION) &#123;</span><br><span class="line">        nested_exception = Handle(THREAD, PENDING_EXCEPTION);</span><br><span class="line">        CLEAR_PENDING_EXCEPTION;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 5. method lookup failed</span></span><br><span class="line">  ...</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 6. access checks, access checking may be turned off when calling from within the VM.</span></span><br><span class="line">  ...</span><br><span class="line"></span><br><span class="line">  <span class="keyword">return</span> resolved_method;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>分了很多步骤，重点是 <em>3</em>、<em>4</em> 步，其他还是都是一些合法性检查。</p>
-<p>这两步原理上类似，我们关注步骤 <em>3</em>。</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br></pre></td><td class="code"><pre><span class="line">methodHandle LinkResolver::lookup_method_in_klasses(const LinkInfo&amp; link_info,</span><br><span class="line">                                                    bool checkpolymorphism,</span><br><span class="line">                                                    bool in_imethod_resolve, TRAPS) &#123;</span><br><span class="line">  <span class="type">KlassHandle</span> <span class="variable">klass</span> <span class="operator">=</span> link_info.resolved_klass();</span><br><span class="line">  Symbol* name = link_info.name();</span><br><span class="line">  Symbol* signature = link_info.signature();</span><br><span class="line"></span><br><span class="line">  <span class="comment">// Ignore overpasses so statics can be found during resolution</span></span><br><span class="line">  Method* result = klass-&gt;uncached_lookup_method(name, signature, Klass::skip_overpass);</span><br><span class="line"></span><br><span class="line">  <span class="keyword">if</span> (klass-&gt;is_array_klass()) &#123;</span><br><span class="line">    <span class="comment">// Only consider klass and super klass for arrays</span></span><br><span class="line">    <span class="keyword">return</span> methodHandle(THREAD, result);</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  InstanceKlass* ik = InstanceKlass::cast(klass());</span><br><span class="line"></span><br><span class="line">  ...</span><br><span class="line"></span><br><span class="line">  <span class="comment">// Before considering default methods, check for an overpass in the</span></span><br><span class="line">  <span class="comment">// current class if a method has not been found.</span></span><br><span class="line">  <span class="keyword">if</span> (result == NULL) &#123;</span><br><span class="line">    result = ik-&gt;find_method(name, signature);</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">if</span> (result == NULL) &#123;</span><br><span class="line">    Array&lt;Method*&gt;* default_methods = ik-&gt;default_methods();</span><br><span class="line">    <span class="keyword">if</span> (default_methods != NULL) &#123;</span><br><span class="line">      result = InstanceKlass::find_method(default_methods, name, signature);</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  ...</span><br><span class="line">  <span class="keyword">return</span> methodHandle(THREAD, result);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>主要就是 <code>uncached_lookup_method</code> 方法（<em>F:\External\openjdk-9_src\openjdk\hotspot\src\share\vm\oops\instanceKlass.cpp</em>）。</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">Method* InstanceKlass::uncached_lookup_method(const Symbol* name,</span><br><span class="line">                                              const Symbol* signature,</span><br><span class="line">                                              OverpassLookupMode overpass_mode) const &#123;</span><br><span class="line">  <span class="type">OverpassLookupMode</span> <span class="variable">overpass_local_mode</span> <span class="operator">=</span> overpass_mode;</span><br><span class="line">  const Klass* klass = <span class="built_in">this</span>;</span><br><span class="line">  <span class="keyword">while</span> (klass != NULL) &#123;</span><br><span class="line">    Method* <span class="type">const</span> <span class="variable">method</span> <span class="operator">=</span> InstanceKlass::cast(klass)-&gt;find_method_impl(name,</span><br><span class="line">                                                                        signature,</span><br><span class="line">                                                                        overpass_local_mode,</span><br><span class="line">                                                                        find_static,</span><br><span class="line">                                                                        find_private);</span><br><span class="line">    <span class="keyword">if</span> (method != NULL) &#123;</span><br><span class="line">      <span class="keyword">return</span> method;</span><br><span class="line">    &#125;</span><br><span class="line">    klass = klass-&gt;<span class="built_in">super</span>();</span><br><span class="line">    overpass_local_mode = skip_overpass;   <span class="comment">// Always ignore overpass methods in superclasses</span></span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">return</span> NULL;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p><code>InstanceKlass</code> 是类的元数据，存在于 <strong>方法区</strong>，包含类的常量池、字段列表、方法列表等。</p>
-<p>查找方式是先在当前类查找，找不到就去基类查找，直到找到或到达顶层。</p>
-<p>这些 <code>find_method</code> 殊途同归，会调用到 <code>InstanceKlass</code> 的类方法 <code>find_method_index</code>。</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> InstanceKlass::find_method_index(const Array&lt;Method*&gt;* methods,</span><br><span class="line">                                     const Symbol* name,</span><br><span class="line">                                     const Symbol* signature,</span><br><span class="line">                                     OverpassLookupMode overpass_mode,</span><br><span class="line">                                     StaticLookupMode static_mode,</span><br><span class="line">                                     PrivateLookupMode private_mode) &#123;</span><br><span class="line">  const <span class="type">bool</span> <span class="variable">skipping_overpass</span> <span class="operator">=</span> (overpass_mode == skip_overpass);</span><br><span class="line">  const <span class="type">bool</span> <span class="variable">skipping_static</span> <span class="operator">=</span> (static_mode == skip_static);</span><br><span class="line">  const <span class="type">bool</span> <span class="variable">skipping_private</span> <span class="operator">=</span> (private_mode == skip_private);</span><br><span class="line">  const <span class="type">int</span> <span class="variable">hit</span> <span class="operator">=</span> binary_search(methods, name);</span><br><span class="line">  <span class="keyword">if</span> (hit != -<span class="number">1</span>) &#123;</span><br><span class="line">    const Method* <span class="type">const</span> <span class="variable">m</span> <span class="operator">=</span> methods-&gt;at(hit);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// Do linear search to find matching signature.  First, quick check</span></span><br><span class="line">    <span class="comment">// for common case, ignoring overpasses if requested.</span></span><br><span class="line">    <span class="keyword">if</span> (method_matches(m, signature, skipping_overpass, skipping_static, skipping_private)) &#123;</span><br><span class="line">          <span class="keyword">return</span> hit;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// search downwards through overloaded methods</span></span><br><span class="line">    <span class="type">int</span> i;</span><br><span class="line">    <span class="keyword">for</span> (i = hit - <span class="number">1</span>; i &gt;= <span class="number">0</span>; --i) &#123;</span><br><span class="line">        const Method* <span class="type">const</span> <span class="variable">m</span> <span class="operator">=</span> methods-&gt;at(i);</span><br><span class="line">        <span class="keyword">assert</span>(m-&gt;is_method(), <span class="string">&quot;must be method&quot;</span>);</span><br><span class="line">        <span class="keyword">if</span> (m-&gt;name() != name) &#123;</span><br><span class="line">          <span class="keyword">break</span>;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">if</span> (method_matches(m, signature, skipping_overpass, skipping_static, skipping_private)) &#123;</span><br><span class="line">          <span class="keyword">return</span> i;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// search upwards</span></span><br><span class="line">    <span class="keyword">for</span> (i = hit + <span class="number">1</span>; i &lt; methods-&gt;length(); ++i) &#123;</span><br><span class="line">        const Method* <span class="type">const</span> <span class="variable">m</span> <span class="operator">=</span> methods-&gt;at(i);</span><br><span class="line">        <span class="keyword">assert</span>(m-&gt;is_method(), <span class="string">&quot;must be method&quot;</span>);</span><br><span class="line">        <span class="keyword">if</span> (m-&gt;name() != name) &#123;</span><br><span class="line">          <span class="keyword">break</span>;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">if</span> (method_matches(m, signature, skipping_overpass, skipping_static, skipping_private)) &#123;</span><br><span class="line">          <span class="keyword">return</span> i;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// not found</span></span><br><span class="line">#ifdef ASSERT</span><br><span class="line">    const <span class="type">int</span> <span class="variable">index</span> <span class="operator">=</span> (skipping_overpass || skipping_static || skipping_private) ? -<span class="number">1</span> :</span><br><span class="line">      linear_search(methods, name, signature);</span><br><span class="line">    <span class="keyword">assert</span>(-<span class="number">1</span> == index, <span class="string">&quot;binary search should have found entry %d&quot;</span>, index);</span><br><span class="line">#endif</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">return</span> -<span class="number">1</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>就是遍历方法列表，进行条件匹配。</p>
-<p>经过上述过程，就解析到了方法的 <strong>直接引用</strong>。</p>
-<p>那么，上面看到运行时解析又是做什么的呢？</p>
-<h3 id="运行时解析"><a href="#运行时解析" class="headerlink" title="运行时解析"></a>运行时解析</h3><p>简化后的代码如下：</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">void</span> LinkResolver::runtime_resolve_virtual_method(CallInfo&amp; result,</span><br><span class="line">                                                  const methodHandle&amp; resolved_method,</span><br><span class="line">                                                  KlassHandle resolved_klass,</span><br><span class="line">                                                  Handle recv,</span><br><span class="line">                                                  KlassHandle recv_klass,</span><br><span class="line">                                                  bool check_null_and_abstract,</span><br><span class="line">                                                  TRAPS) &#123;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// setup default return values</span></span><br><span class="line">  <span class="type">int</span> <span class="variable">vtable_index</span> <span class="operator">=</span> Method::invalid_vtable_index;</span><br><span class="line">  methodHandle selected_method;</span><br><span class="line"></span><br><span class="line">  ...</span><br><span class="line"></span><br><span class="line">  <span class="comment">// do lookup based on receiver klass using the vtable index</span></span><br><span class="line">  <span class="keyword">if</span> (resolved_method-&gt;method_holder()-&gt;is_interface()) &#123; <span class="comment">// default or miranda method</span></span><br><span class="line">    vtable_index = vtable_index_of_interface_method(resolved_klass,</span><br><span class="line">                           resolved_method);</span><br><span class="line">    <span class="keyword">assert</span>(vtable_index &gt;= <span class="number">0</span> , <span class="string">&quot;we should have valid vtable index at this point&quot;</span>);</span><br><span class="line"></span><br><span class="line">    selected_method = methodHandle(THREAD, recv_klass-&gt;method_at_vtable(vtable_index));</span><br><span class="line">  &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">    <span class="comment">// at this point we are sure that resolved_method is virtual and not</span></span><br><span class="line">    <span class="comment">// a default or miranda method; therefore, it must have a valid vtable index.</span></span><br><span class="line">    <span class="keyword">assert</span>(!resolved_method-&gt;has_itable_index(), <span class="string">&quot;&quot;</span>);</span><br><span class="line">    vtable_index = resolved_method-&gt;vtable_index();</span><br><span class="line">    <span class="comment">// We could get a negative vtable_index for final methods,</span></span><br><span class="line">    <span class="comment">// because as an optimization they are they are never put in the vtable,</span></span><br><span class="line">    <span class="comment">// unless they override an existing method.</span></span><br><span class="line">    <span class="comment">// If we do get a negative, it means the resolved method is the the selected</span></span><br><span class="line">    <span class="comment">// method, and it can never be changed by an override.</span></span><br><span class="line">    <span class="keyword">if</span> (vtable_index == Method::nonvirtual_vtable_index) &#123;</span><br><span class="line">      <span class="keyword">assert</span>(resolved_method-&gt;can_be_statically_bound(), <span class="string">&quot;cannot override this method&quot;</span>);</span><br><span class="line">      selected_method = resolved_method;</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">      selected_method = methodHandle(THREAD, recv_klass-&gt;method_at_vtable(vtable_index));</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  ...</span><br><span class="line"></span><br><span class="line">  <span class="comment">// setup result</span></span><br><span class="line">  result.set_virtual(resolved_klass, recv_klass, resolved_method, selected_method, vtable_index, CHECK);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>过程很简单，首先获取方法的 <strong>虚表索引</strong>（<code>vtable_index</code>），再通过该索引获取方法真正的 <strong>直接引用</strong>。</p>
-<p>这里用到了 “真正的” 这个词，什么意思？</p>
-<p>假设有如下代码：</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">B</span> &#123;</span><br><span class="line">  <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">hello</span><span class="params">()</span> &#123;&#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">D</span> <span class="keyword">extends</span> <span class="title class_">B</span> &#123;</span><br><span class="line">  <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">hello</span><span class="params">()</span> &#123;&#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">B</span> <span class="variable">b</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">D</span>();</span><br><span class="line">b.hello();</span><br></pre></td></tr></table></figure>
-
-<p>这里，<code>b</code> 的 <strong>静态类型</strong> 是 <code>B</code>，<strong>实际类型</strong> 是 <code>D</code>。</p>
-<p>类 <code>B</code> 和 <code>D</code> 都有各自的 <strong>虚表</strong>，存放着 <strong>虚方法</strong> 的地址，即 <strong>直接引用</strong>。</p>
-<p>上面 <strong>链接时</strong> 解析出的 <strong>直接引用</strong> 是 <code>B</code> 的 <code>hello</code> 方法地址，<code>D</code> <strong>重写</strong>（<strong>overwrite</strong>）了该方法，故而真正的 <strong>直接引用</strong> 应该是 <code>D</code> 的 <code>hello</code> 方法地址，这个地址就是 <strong>运行时</strong> 解析出来的。</p>
-<p>通过 <strong>链接时</strong> 解析出的 <strong>直接引用</strong>，可以获取到基类方法对应的 <strong>虚表索引</strong>，而子类重写后，同一方法的 <strong>虚表索引</strong> 保持不变，只是子类的 <strong>虚表</strong> 的该项内容重写为子类的方法地址。</p>
-<p>示例中的 <code>D</code> 即源码中的 <code>recv_kclass</code>，根据 <strong>虚表索引</strong> 查找 <strong>实际类型</strong> <code>D</code> 的 <strong>虚表</strong>，获取到的就是 <code>D</code> 中的方法地址，也即真正的的 <strong>直接引用</strong>。</p>
-<h2 id="话外"><a href="#话外" class="headerlink" title="话外"></a>话外</h2><p>这就是 <strong>动态分派</strong>，因为这种分派只看 <strong>实际类型</strong> 一个因素，所以 <strong>重写</strong> 属于 <strong>动态单分派</strong>。</p>
-
-      
-    </div>
-
-    
-    
-    
-
-    <footer class="post-footer">
-        <div class="post-eof"></div>
-      
-    </footer>
-  </article>
-</div>
-
-
-
-
-    
-
-
-<div class="post-block">
-  
-  
-
-  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="">
-    <link itemprop="mainEntityOfPage" href="https://qilu.me/2019/08/12/2019-08-12/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Kaleo Feng">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="樂只君子">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
-      <meta itemprop="name" content="undefined | 樂只君子">
-      <meta itemprop="description" content="">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          <a href="/2019/08/12/2019-08-12/" class="post-title-link" itemprop="url">HotSpot JVM源码分析 - 方法调用与解释执行（2）：由invoke指令看如何从操作数解析出符号引用信息</a>
-        </h2>
-
-        <div class="post-meta-container">
-          <div class="post-meta">
-    <span class="post-meta-item">
-      <span class="post-meta-item-icon">
-        <i class="far fa-calendar"></i>
-      </span>
-      <span class="post-meta-item-text">发表于</span>
-
-      <time title="创建时间：2019-08-12 22:30:00" itemprop="dateCreated datePublished" datetime="2019-08-12T22:30:00+08:00">2019-08-12</time>
-    </span>
-    <span class="post-meta-item">
-      <span class="post-meta-item-icon">
-        <i class="far fa-folder"></i>
-      </span>
-      <span class="post-meta-item-text">分类于</span>
-        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-          <a href="/categories/Lore/" itemprop="url" rel="index"><span itemprop="name">Lore</span></a>
-        </span>
-    </span>
-
-  
-</div>
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-          <p>本系列文章基于 <strong>OpenJDK 9</strong>，聚焦 <strong>x86</strong> 平台。</p>
-<p>本文以 <code>invokevirtual</code> 指令为例，分析 HotSpot JVM 解释器如何从操作数解析出 <strong>符号引用</strong> 信息。</p>
-<h2 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h2><p>类似 <code>invokevirtual</code> 的字节码指令，在解析前，其操作数大小为 <em>2</em> 字节，存储了 <strong>常量池</strong> （<strong>ConstantPool</strong>）索引，根据该索引可以一步步获取到 <strong>符号引用</strong> 信息；在 <strong>解析</strong> 阶段将 <strong>符号引用</strong> 解析成 <strong>直接引用</strong> 后，该操作数存储的是 <strong>常量池缓存条目</strong> （<strong>ConstantPoolCacheEntry</strong>）索引。</p>
-<p>上篇文章提到过，缓存条目的 <code>_indices</code> 字段，低 <em>2</em> 字节保存了原 <strong>常量池</strong> 索引（original constant pool index）。</p>
-<h2 id="正文"><a href="#正文" class="headerlink" title="正文"></a>正文</h2><p>看下面这段源码（<em>openjdk\hotspot\src\share\vm\interpreter\interpreterRuntime.cpp</em>）：</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">LinkResolver::resolve_invoke(info, receiver, pool,</span><br><span class="line">                             get_index_u2_cpcache(thread, bytecode), bytecode,</span><br><span class="line">                             CHECK);</span><br></pre></td></tr></table></figure>
-
-<p>调用 <code>LinkResolver</code> 的 <code>resolve_invoke</code> 方法解析字节码指令 <code>bytecode</code>。</p>
-<h3 id="获取符号-常量池-索引"><a href="#获取符号-常量池-索引" class="headerlink" title="获取符号 常量池 索引"></a>获取符号 <strong>常量池</strong> 索引</h3><p>参数<code>pool</code> 为 <strong>常量池</strong>， 方法 <code>get_index_u2_cpcache</code> 用于获取 <strong>常量池</strong> 索引（解析前）或者 <strong>常量池缓存</strong> 索引（解析后）。</p>
-<p>实现如下（<em>openjdk\hotspot\src\share\vm\interpreter\interpreterRuntime.hpp</em>)：</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">get_index_u2_cpcache(JavaThread *thread, Bytecodes::Code bc)</span><br><span class="line">                                      &#123; <span class="keyword">return</span> bytecode(thread).get_index_u2_cpcache(bc); &#125;</span><br></pre></td></tr></table></figure>
-
-<p><code>ByteCode</code>（<em>openjdk\hotspot\src\share\vm\interpreter\bytecode.hpp</em>）：</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> <span class="title function_">get_index_u2_cpcache</span><span class="params">(Bytecodes::Code bc)</span> const &#123;</span><br><span class="line">    assert_same_format_as(bc); assert_index_size(<span class="number">2</span>, bc); assert_native_index(bc);</span><br><span class="line">    <span class="keyword">return</span> Bytes::get_native_u2(addr_at(<span class="number">1</span>)) + ConstantPool::CPCACHE_INDEX_TAG;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
-
-<p><code>addr_at(1)</code> 用于获取操作数地址：</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"> <span class="comment">// Address computation</span></span><br><span class="line">address <span class="title function_">addr_at</span>            <span class="params">(<span class="type">int</span> offset)</span>        const     &#123; <span class="keyword">return</span> (address)_bcp + offset; &#125;</span><br></pre></td></tr></table></figure>
-
-<p><code>_bcp</code> 即 byte code pointer，字节码指令指针，因为字节码指令大小为 <em>1</em> 字节，<code>+ 1</code> 后即为操作数地址。</p>
-<p><code>Bytes::get_native_u2</code> 根据 <strong>CPU</strong> 架构获取 <em>2</em> 字节大小的数据。</p>
-<p><code>ConstantPool::CPCACHE_INDEX_TAG</code> 做调试用，不必关注。</p>
-<p>经过上述调用后，获得紧跟字节码指令后的 <strong>常量池</strong> 索引。</p>
-<h3 id="获取-符号引用-信息"><a href="#获取-符号引用-信息" class="headerlink" title="获取 符号引用 信息"></a>获取 <strong>符号引用</strong> 信息</h3><p>开始正式解析（<em>openjdk\hotspot\src\share\vm\interpreter\linkResolver.cpp</em>）：</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">void</span> LinkResolver::resolve_invoke(CallInfo&amp; result, Handle recv, const constantPoolHandle&amp; pool, <span class="type">int</span> index, Bytecodes::Code <span class="type">byte</span>, TRAPS) &#123;</span><br><span class="line">  <span class="keyword">switch</span> (<span class="type">byte</span>) &#123;</span><br><span class="line">    <span class="keyword">case</span> Bytecodes::_invokestatic   : resolve_invokestatic   (result,       pool, index, CHECK); <span class="keyword">break</span>;</span><br><span class="line">    <span class="keyword">case</span> Bytecodes::_invokespecial  : resolve_invokespecial  (result, recv, pool, index, CHECK); <span class="keyword">break</span>;</span><br><span class="line">    <span class="keyword">case</span> Bytecodes::_invokevirtual  : resolve_invokevirtual  (result, recv, pool, index, CHECK); <span class="keyword">break</span>;</span><br><span class="line">    <span class="keyword">case</span> Bytecodes::_invokehandle   : resolve_invokehandle   (result,       pool, index, CHECK); <span class="keyword">break</span>;</span><br><span class="line">    <span class="keyword">case</span> Bytecodes::_invokedynamic  : resolve_invokedynamic  (result,       pool, index, CHECK); <span class="keyword">break</span>;</span><br><span class="line">    <span class="keyword">case</span> Bytecodes::_invokeinterface: resolve_invokeinterface(result, recv, pool, index, CHECK); <span class="keyword">break</span>;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">return</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>关注 <code>_invokevirtual</code> 指令：</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">void</span> LinkResolver::resolve_invokevirtual(CallInfo&amp; result, Handle recv,</span><br><span class="line">                                          const constantPoolHandle&amp; pool, <span class="type">int</span> index,</span><br><span class="line">                                          TRAPS) &#123;</span><br><span class="line"></span><br><span class="line">  LinkInfo <span class="title function_">link_info</span><span class="params">(pool, index, CHECK)</span>;</span><br><span class="line">  KlassHandle <span class="title function_">recvrKlass</span> <span class="params">(THREAD, recv.is_null()</span> ? (Klass*)NULL : recv-&gt;klass());</span><br><span class="line">  resolve_virtual_call(result, recv, recvrKlass, link_info, <span class="comment">/*check_null_or_abstract*/</span><span class="literal">true</span>, CHECK);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>本文只关注该行代码：</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">LinkInfo <span class="title function_">link_info</span><span class="params">(pool, index, CHECK)</span>;</span><br></pre></td></tr></table></figure>
-
-<p><code>LinkInfo</code> 顾名思义，链接信息，也即 <strong>符号引用</strong> 信息，结构如下（<em>openjdk\hotspot\src\share\vm\interpreter\linkResolver.hpp</em>）：</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Condensed information from constant pool to use to resolve the method or field.</span></span><br><span class="line"><span class="comment">//   resolved_klass = specified class (i.e., static receiver class)</span></span><br><span class="line"><span class="comment">//   current_klass  = sending method holder (i.e., class containing the method</span></span><br><span class="line"><span class="comment">//                    containing the call being resolved)</span></span><br><span class="line"><span class="comment">//   current_method = sending method (relevant for field resolution)</span></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">LinkInfo</span> : <span class="keyword">public</span> StackObj &#123;</span><br><span class="line">  Symbol*     _name;            <span class="comment">// extracted from JVM_CONSTANT_NameAndType</span></span><br><span class="line">  Symbol*     _signature;</span><br><span class="line">  KlassHandle _resolved_klass;  <span class="comment">// class that the constant pool entry points to</span></span><br><span class="line">  KlassHandle _current_klass;   <span class="comment">// class that owns the constant pool</span></span><br><span class="line">  methodHandle _current_method;  <span class="comment">// sending method</span></span><br><span class="line">  bool        _check_access;</span><br><span class="line">  constantTag _tag;</span><br></pre></td></tr></table></figure>
-
-<p>其构造函数做了一系列工作（<em>openjdk\hotspot\src\share\vm\interpreter\linkResolver.cpp</em>）：</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line">LinkInfo::LinkInfo(const constantPoolHandle&amp; pool, <span class="type">int</span> index, TRAPS) &#123;</span><br><span class="line">   <span class="comment">// resolve klass</span></span><br><span class="line">  Klass* result = pool-&gt;klass_ref_at(index, CHECK);</span><br><span class="line">  _resolved_klass = KlassHandle(THREAD, result);</span><br><span class="line"></span><br><span class="line">  <span class="comment">// Get name, signature, and static klass</span></span><br><span class="line">  _name          = pool-&gt;name_ref_at(index);</span><br><span class="line">  _signature     = pool-&gt;signature_ref_at(index);</span><br><span class="line">  _tag           = pool-&gt;tag_ref_at(index);</span><br><span class="line">  _current_klass = KlassHandle(THREAD, pool-&gt;pool_holder());</span><br><span class="line">  _current_method = methodHandle();</span><br><span class="line"></span><br><span class="line">  <span class="comment">// Coming from the constant pool always checks access</span></span><br><span class="line">  _check_access  = <span class="literal">true</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p><code>invokevirtual</code> 指令调用一个方法，如果要解析得到该方法的 <strong>直接引用</strong>，必定首先要有该方法的详细信息，如方法所在类、方法名称、方法签名（参数和范围值类型）等。该构造函数分别获取了这些信息，共同构成了方法 <strong>符号引用</strong> 信息。</p>
-<p>以获取所在类信息为例（<em>openjdk\hotspot\src\share\vm\oops\constantPool.cpp</em>）：</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">Klass* ConstantPool::klass_ref_at(<span class="type">int</span> which, TRAPS) &#123;</span><br><span class="line">  <span class="keyword">return</span> klass_at(klass_ref_index_at(which), THREAD);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>有两步，首先获取类引用索引，再通过索引获取类信息。</p>
-<h4 id="获取类引用索引"><a href="#获取类引用索引" class="headerlink" title="获取类引用索引"></a>获取类引用索引</h4><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> <span class="title function_">klass_ref_index_at</span><span class="params">(<span class="type">int</span> which)</span>               &#123; <span class="keyword">return</span> impl_klass_ref_index_at(which, <span class="literal">false</span>); &#125;</span><br></pre></td></tr></table></figure>
-
-<p>调用具体实现函数。</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> ConstantPool::impl_klass_ref_index_at(<span class="type">int</span> which, bool uncached) &#123;</span><br><span class="line">  guarantee(!ConstantPool::is_invokedynamic_index(which),</span><br><span class="line">            <span class="string">&quot;an invokedynamic instruction does not have a klass&quot;</span>);</span><br><span class="line">  <span class="type">int</span> <span class="variable">i</span> <span class="operator">=</span> which;</span><br><span class="line">  <span class="keyword">if</span> (!uncached &amp;&amp; cache() != NULL) &#123;</span><br><span class="line">    <span class="comment">// change byte-ordering and go via cache</span></span><br><span class="line">    i = remap_instruction_operand_from_cache(which);</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">assert</span>(tag_at(i).is_field_or_method(), <span class="string">&quot;Corrupted constant pool&quot;</span>);</span><br><span class="line">  <span class="type">jint</span> <span class="variable">ref_index</span> <span class="operator">=</span> *int_at_addr(i);</span><br><span class="line">  <span class="keyword">return</span> extract_low_short_from_int(ref_index);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>分两种情况：如果没缓存过，传入参数 <code>which</code> 即 <strong>常量池</strong> 索引；否则前面说过，索引在 <strong>常量池缓存</strong> 中，缓存条目的 <code>_indices</code> 字段低 <em>2</em> 位。</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> ConstantPool::remap_instruction_operand_from_cache(<span class="type">int</span> operand) &#123;</span><br><span class="line">  <span class="type">int</span> <span class="variable">cpc_index</span> <span class="operator">=</span> operand;</span><br><span class="line">  DEBUG_ONLY(cpc_index -= CPCACHE_INDEX_TAG);</span><br><span class="line">  <span class="keyword">assert</span>((<span class="type">int</span>)(u2)cpc_index == cpc_index, <span class="string">&quot;clean u2&quot;</span>);</span><br><span class="line">  <span class="type">int</span> <span class="variable">member_index</span> <span class="operator">=</span> cache()-&gt;entry_at(cpc_index)-&gt;constant_pool_index();</span><br><span class="line">  <span class="keyword">return</span> member_index;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>从 <strong>常量池缓存</strong> 获取目标数据。</p>
-<h4 id="通过索引获取类信息"><a href="#通过索引获取类信息" class="headerlink" title="通过索引获取类信息"></a>通过索引获取类信息</h4><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">Klass* klass_at(<span class="type">int</span> which, TRAPS) &#123;</span><br><span class="line">  constantPoolHandle <span class="title function_">h_this</span><span class="params">(THREAD, <span class="built_in">this</span>)</span>;</span><br><span class="line">  <span class="keyword">return</span> klass_at_impl(h_this, which, <span class="literal">true</span>, THREAD);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>调用具体实现函数。</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br></pre></td><td class="code"><pre><span class="line">Klass* ConstantPool::klass_at_impl(const constantPoolHandle&amp; this_cp, <span class="type">int</span> which,</span><br><span class="line">                                   bool save_resolution_error, TRAPS) &#123;</span><br><span class="line">  <span class="keyword">assert</span>(THREAD-&gt;is_Java_thread(), <span class="string">&quot;must be a Java thread&quot;</span>);</span><br><span class="line"></span><br><span class="line">  <span class="comment">// A resolved constantPool entry will contain a Klass*, otherwise a Symbol*.</span></span><br><span class="line">  <span class="comment">// It is not safe to rely on the tag bit&#x27;s here, since we don&#x27;t have a lock, and</span></span><br><span class="line">  <span class="comment">// the entry and tag is not updated atomicly.</span></span><br><span class="line">  <span class="type">CPSlot</span> <span class="variable">entry</span> <span class="operator">=</span> this_cp-&gt;slot_at(which);</span><br><span class="line">  <span class="keyword">if</span> (entry.is_resolved()) &#123;</span><br><span class="line">    <span class="keyword">assert</span>(entry.get_klass()-&gt;is_klass(), <span class="string">&quot;must be&quot;</span>);</span><br><span class="line">    <span class="comment">// Already resolved - return entry.</span></span><br><span class="line">    <span class="keyword">return</span> entry.get_klass();</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// This tag doesn&#x27;t change back to unresolved class unless at a safepoint.</span></span><br><span class="line">  <span class="keyword">if</span> (this_cp-&gt;tag_at(which).is_unresolved_klass_in_error()) &#123;</span><br><span class="line">    <span class="comment">// The original attempt to resolve this constant pool entry failed so find the</span></span><br><span class="line">    <span class="comment">// class of the original error and throw another error of the same class</span></span><br><span class="line">    <span class="comment">// (JVMS 5.4.3).</span></span><br><span class="line">    <span class="comment">// If there is a detail message, pass that detail message to the error.</span></span><br><span class="line">    <span class="comment">// The JVMS does not strictly require us to duplicate the same detail message,</span></span><br><span class="line">    <span class="comment">// or any internal exception fields such as cause or stacktrace.  But since the</span></span><br><span class="line">    <span class="comment">// detail message is often a class name or other literal string, we will repeat it</span></span><br><span class="line">    <span class="comment">// if we can find it in the symbol table.</span></span><br><span class="line">    throw_resolution_error(this_cp, which, CHECK_0);</span><br><span class="line">    ShouldNotReachHere();</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  Handle mirror_handle;</span><br><span class="line">  Symbol* name = entry.get_symbol();</span><br><span class="line">  Handle <span class="title function_">loader</span> <span class="params">(THREAD, this_cp-&gt;pool_holder()</span>-&gt;class_loader());</span><br><span class="line">  Handle <span class="title function_">protection_domain</span> <span class="params">(THREAD, this_cp-&gt;pool_holder()</span>-&gt;protection_domain());</span><br><span class="line">  Klass* kk = SystemDictionary::resolve_or_fail(name, loader, protection_domain, <span class="literal">true</span>, THREAD);</span><br><span class="line">  KlassHandle <span class="title function_">k</span> <span class="params">(THREAD, kk)</span>;</span><br><span class="line">  <span class="keyword">if</span> (!HAS_PENDING_EXCEPTION) &#123;</span><br><span class="line">    <span class="comment">// preserve the resolved klass from unloading</span></span><br><span class="line">    mirror_handle = Handle(THREAD, kk-&gt;java_mirror());</span><br><span class="line">    <span class="comment">// Do access check for klasses</span></span><br><span class="line">    verify_constant_pool_resolve(this_cp, k, THREAD);</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// Failed to resolve class. We must record the errors so that subsequent attempts</span></span><br><span class="line">  <span class="comment">// to resolve this constant pool entry fail with the same error (JVMS 5.4.3).</span></span><br><span class="line">  <span class="keyword">if</span> (HAS_PENDING_EXCEPTION) &#123;</span><br><span class="line">    <span class="keyword">if</span> (save_resolution_error) &#123;</span><br><span class="line">      save_and_throw_exception(this_cp, which, constantTag(JVM_CONSTANT_UnresolvedClass), CHECK_NULL);</span><br><span class="line">      <span class="comment">// If CHECK_NULL above doesn&#x27;t return the exception, that means that</span></span><br><span class="line">      <span class="comment">// some other thread has beaten us and has resolved the class.</span></span><br><span class="line">      <span class="comment">// To preserve old behavior, we return the resolved class.</span></span><br><span class="line">      entry = this_cp-&gt;resolved_klass_at(which);</span><br><span class="line">      <span class="keyword">assert</span>(entry.is_resolved(), <span class="string">&quot;must be resolved if exception was cleared&quot;</span>);</span><br><span class="line">      <span class="keyword">assert</span>(entry.get_klass()-&gt;is_klass(), <span class="string">&quot;must be resolved to a klass&quot;</span>);</span><br><span class="line">      <span class="keyword">return</span> entry.get_klass();</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">      <span class="keyword">return</span> NULL;  <span class="comment">// return the pending exception</span></span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// Make this class loader depend upon the class loader owning the class reference</span></span><br><span class="line">  ClassLoaderData* this_key = this_cp-&gt;pool_holder()-&gt;class_loader_data();</span><br><span class="line">  this_key-&gt;record_dependency(k(), CHECK_NULL); <span class="comment">// Can throw OOM</span></span><br><span class="line"></span><br><span class="line">  <span class="comment">// logging for class+resolve.</span></span><br><span class="line">  <span class="keyword">if</span> (log_is_enabled(Debug, class, resolve))&#123;</span><br><span class="line">    trace_class_resolution(this_cp, k);</span><br><span class="line">  &#125;</span><br><span class="line">  this_cp-&gt;klass_at_put(which, k());</span><br><span class="line">  entry = this_cp-&gt;resolved_klass_at(which);</span><br><span class="line">  <span class="keyword">assert</span>(entry.is_resolved() &amp;&amp; entry.get_klass()-&gt;is_klass(), <span class="string">&quot;must be resolved at this point&quot;</span>);</span><br><span class="line">  <span class="keyword">return</span> entry.get_klass();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>代码很长，大意就是如果该类已被解析过，就直接返回类信息，否则尝试解析该类并放到常量池中，并返回类信息。</p>
-<p>这样就获得了方法（<strong>符号</strong>）的所在类引用，方法名称等的获取方式大同小异。</p>
-<h2 id="话外"><a href="#话外" class="headerlink" title="话外"></a>话外</h2><p>有了方法的 <strong>符号引用</strong> 信息，就可以根据这些信息解析到它的 <strong>直接引用</strong> 了，之后的文章将介绍这部分内容。</p>
-
-      
-    </div>
-
-    
-    
-    
-
-    <footer class="post-footer">
-        <div class="post-eof"></div>
-      
-    </footer>
-  </article>
-</div>
-
-
-
-
-    
-
-
-<div class="post-block">
-  
-  
-
-  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="">
-    <link itemprop="mainEntityOfPage" href="https://qilu.me/2019/06/02/2019-06-02/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Kaleo Feng">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="樂只君子">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
-      <meta itemprop="name" content="undefined | 樂只君子">
-      <meta itemprop="description" content="">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          <a href="/2019/06/02/2019-06-02/" class="post-title-link" itemprop="url">HotSpot JVM源码分析 - 方法调用与解释执行（1）：流程综述</a>
-        </h2>
-
-        <div class="post-meta-container">
-          <div class="post-meta">
-    <span class="post-meta-item">
-      <span class="post-meta-item-icon">
-        <i class="far fa-calendar"></i>
-      </span>
-      <span class="post-meta-item-text">发表于</span>
-
-      <time title="创建时间：2019-06-02 21:00:00" itemprop="dateCreated datePublished" datetime="2019-06-02T21:00:00+08:00">2019-06-02</time>
-    </span>
-    <span class="post-meta-item">
-      <span class="post-meta-item-icon">
-        <i class="far fa-folder"></i>
-      </span>
-      <span class="post-meta-item-text">分类于</span>
-        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-          <a href="/categories/Lore/" itemprop="url" rel="index"><span itemprop="name">Lore</span></a>
-        </span>
-    </span>
-
-  
-</div>
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-          <p>本系列文章基于 <strong>OpenJDK 9</strong>，聚焦 <strong>x86</strong> 平台。</p>
-<p>为避免陷入代码和细节的汪洋大海中，本文尽量只做文字描述，并忽略一些细枝末节，目的是对整个流程有个宏观上的把握。</p>
-<h2 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h2><p>先看一段代码：</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">sendUserVerify</span><span class="params">(String to, String subject, String content)</span> <span class="keyword">throws</span> RuntimeException &#123;</span><br><span class="line">    <span class="type">SimpleMailMessage</span> <span class="variable">message</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">SimpleMailMessage</span>();</span><br><span class="line">    message.setFrom(from);</span><br><span class="line">    message.setTo(to);</span><br><span class="line">    message.setSubject(subject);</span><br><span class="line">    message.setText(content);</span><br><span class="line">    mailSender.send(message);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>编译成字节码文件，方法体对应的可读字节码片段为：</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"> <span class="number">0</span>: <span class="keyword">new</span>             #<span class="number">3</span></span><br><span class="line"> <span class="number">3</span>: dup</span><br><span class="line"> <span class="number">4</span>: invokespecial   #<span class="number">4</span></span><br><span class="line"> <span class="number">7</span>: astore          <span class="number">4</span></span><br><span class="line"> <span class="number">9</span>: aload           <span class="number">4</span></span><br><span class="line"><span class="number">11</span>: aload_0</span><br><span class="line"><span class="number">12</span>: getfield        #<span class="number">5</span></span><br><span class="line"><span class="number">15</span>: invokevirtual   #<span class="number">6</span></span><br><span class="line"><span class="number">18</span>: aload           <span class="number">4</span></span><br><span class="line"><span class="number">20</span>: aload_1</span><br><span class="line"><span class="number">21</span>: invokevirtual   #<span class="number">7</span></span><br><span class="line"><span class="number">24</span>: aload           <span class="number">4</span></span><br><span class="line"><span class="number">26</span>: aload_2</span><br><span class="line"><span class="number">27</span>: invokevirtual   #<span class="number">8</span></span><br><span class="line"><span class="number">30</span>: aload           <span class="number">4</span></span><br><span class="line"><span class="number">32</span>: aload_3</span><br><span class="line"><span class="number">33</span>: invokevirtual   #<span class="number">9</span></span><br><span class="line"><span class="number">36</span>: aload_0</span><br><span class="line"><span class="number">37</span>: getfield        #<span class="number">2</span></span><br><span class="line"><span class="number">40</span>: aload           <span class="number">4</span></span><br><span class="line"><span class="number">42</span>: invokeinterface #<span class="number">10</span>, <span class="number">2</span></span><br><span class="line"><span class="number">47</span>: <span class="keyword">return</span></span><br></pre></td></tr></table></figure>
-
-<p>站在JVM的角度，想要执行这个字节码文件的这个方法，该如何处理以执行呢？</p>
-<h2 id="正文"><a href="#正文" class="headerlink" title="正文"></a>正文</h2><p>首先，需要 <strong>加载</strong> 这个文件，并进行一系列 <strong>验证</strong>。此时文件内容已经在内存中，开始分析这个文件。</p>
-<h3 id="字节码文件格式"><a href="#字节码文件格式" class="headerlink" title="字节码文件格式"></a>字节码文件格式</h3><p>从头开始，依次看到魔数，版本号，常量池，基类，接口列表，字段表等等，直到方法表。</p>
-<p>在方法表的第N项，看到了这个方法。通过分析这个方法条目，可以知道方法的访问标志、名字、签名信息、属性表等。</p>
-<p>想要执行这个方法，那必然要关心方法体。在方法条目的属性表里，找到一个名为 <code>Code</code> 的属性，在这个属性条目里，看到了上面的字节码片段。</p>
-<p>终于找到你。</p>
-<h3 id="操作数到符号引用"><a href="#操作数到符号引用" class="headerlink" title="操作数到符号引用"></a>操作数到符号引用</h3><p>如前所列，一条接一条的字节码呈现在眼前。</p>
-<p>选择一条字节码来解析，比如 <code>15: invokevirtual   #6</code>，其对应的二进制代码为 <code>B6 00 06</code>。</p>
-<p>第1个字节 <code>B6</code> 为字节码指令，查询JVM源码可知对应字节码指令为 <code>_invokevirtual = 182, // 0xb6</code>；后续2个字节为操作数。由于尚未解析过，其代表常量池条目索引。查询常量池，可知该条目可读字节码片段为 <code>#6 = Methodref #3.#50</code>，二进制代码为 <code>0A 00 03 00 32</code>，表示它一个 <code>Methodref</code> 类型的常量池条目，其字段<code>#3.#50</code>也是常量池条目索引，又可以依此分析下去。</p>
-<p>最后，知道了字节码指令为 <code>_invokevirtual</code>，调用目标是一个方法，得到了这个方法所在类名、方法名称、方法签名。这些信息都是字符串形式的，即 <strong>符号引用</strong>。</p>
-<h3 id="符号引用到直接引用"><a href="#符号引用到直接引用" class="headerlink" title="符号引用到直接引用"></a>符号引用到直接引用</h3><p>光有符号引用， 是没法执行的，因为需要的是方法代码，一个方法地址。</p>
-<p>还好，已经知道了这个目标方法的各种信息。通过方法所在类名，可以找到这个类位于元空间（方法区）的类元数据。所谓类元数据就是已经加载好的类字节码文件在内存中的表示，里面必然有这个类的字段表，方法表等。这样再根据方法名、方法签名，就能在这个类元数据的方法表里找到对应的方法数据。这个方法数据地址，即 <strong>直接引用</strong>。</p>
-<h3 id="常量池缓存"><a href="#常量池缓存" class="headerlink" title="常量池缓存"></a>常量池缓存</h3><p>我们肯定不希望每次执行这个字节码，都像上面解析一遍，所以要把这个方法引用缓存起来。</p>
-<p>存在哪呢？</p>
-<p>既然符号引用在常量池里，那就开辟一个 <strong>常量池缓存</strong>，里面为 常量池缓存条目，用以保存直接引用信息。</p>
-<p>存哪些信息呢？</p>
-<p>似乎，可以把方法地址存起来，这样下次就能直接找到这个方法了。</p>
-<p>但是，方法情况可能各有不同。有些方法不能再被重写，比如已经是 <code>final</code> 的。这种好办，直接记下方法引用就好，反正它不会再变。可还有些方法可以被重写，比如 <code>virtual</code> 的，或者 <code>interface</code> 的。我们找到的只是通过静态类型查到的方法数据，子类可能已经重写了这个方法。实际调用对象如果是子类的实例，调用的方法应该是子类重写后的方法，也即动态类型的方法数据。</p>
-<blockquote>
-<p>静态类型：变量的声明类型</p>
-<p>动态类型：变量的实际类型</p>
-<p>比如：Animal a &#x3D; new Dog()，Dog继承或实现了Animal, a 的静态类型是Animal，动态类型是Dog。</p>
-</blockquote>
-<p>好在继承一个类（实现一个接口），同一个方法在基类（接口）中的类虚表索引（接口虚表索引）不会变。那么对于 <code>virtual</code> 或<code>interface</code> 的方法，我们记下类虚表索引或接口虚表索引就好，然后运行时在动态类型的类元数据里，在类虚表或接口虚表里根据索引找到重写的方法数据。对于 <code>virtual</code> 的方法，这样是可行的，但对于 <code>interface</code> 的方法，还要多记录接口引用，因为继承的基类只有一个，但实现的接口可能有多个，所以运行时还需要通过接口引用找到对应的接口虚表。</p>
-<h3 id="字节码重写"><a href="#字节码重写" class="headerlink" title="字节码重写"></a>字节码重写</h3><p>解析完成，有了常量池缓存，那么怎么跟原字节码指令关联起来使用呢？</p>
-<p>前面提到，指令操作数解析前为常量池索引，解析后，就用不到了，那么可以重写这个操作数，改为常量池缓存索引。</p>
-<p>那问题来了，字节码执行的时候，怎么知道这个操作数是常量池索引还是常量池缓存索引？</p>
-<p>索性，字节码文件加载进来后，就对 <strong>字节码重写</strong>，使操作数变为常量池缓存索引，并开辟好常量池缓存。</p>
-<p>此时，指令操作数为常量池缓存索引。因为尚未解析，还是需要常量池索引。那就在常量池缓存条目中增加一个字段，低16位保存常量池索引。</p>
-<p>字节码执行时，通过操作数直接找到常量池缓存条目。如果解析过，就直接使用；如果没解析过，就根据这个字段的低16位，获得常量池索引，进行上面的引用解析流程。</p>
-<p>怎么知道是否解析过？</p>
-<p>解析过后，在这个字段的高16位保存下对应的字节码指令。执行时，判断其是否等于字节码指令即可，因为没解析过时，高16位未赋值，必然不等。</p>
-<h3 id="字节码执行"><a href="#字节码执行" class="headerlink" title="字节码执行"></a>字节码执行</h3><p>前面说的操作数解析过程，实际上就是invoke类型字节码的部分执行步骤。</p>
-<p>对于一个字节码，实际是怎么执行的呢？</p>
-<p>最简单的，采用switch case，是哪种字节码指令就执行哪些操作。这种指令有200多个，根据经验，还可以采用查表方式，一种字节码指令对应一个指令执行函数。</p>
-<p>JVM有两种解释器：<strong>CPP解释器</strong> 和 <strong>模板解释器</strong>。前者采用了switch case方式，后者采用了查表方式。</p>
-<p>因为基本只使用模板解释器，所以只关注这个。</p>
-<p>既然是查表，key就是字节码指令，value是指令执行函数。这个执行函数执行极度频繁，必须尽可能高效，所以我们自己决定它的每行代码，确定执行步骤。JMV面向众多平台，我们就用汇编命令形式描述执行步骤，然后不同平台的汇编器将这些汇编命令翻译成各自平台的机器码。这些机器码，构成执行函数。</p>
-<h4 id="字节码到机器码"><a href="#字节码到机器码" class="headerlink" title="字节码到机器码"></a>字节码到机器码</h4><p>模板，就是这些汇编命令形式函数的集合。模板表，key是字节码指令，value是对应的模板。</p>
-<p>模板解释器初始化时，模板解释器生成器依次调用各个字节码指令对应的模板的生成函数，生成平台相关的执行函数的机器码。</p>
-<p>我们分配一块内存，作为一个 <code>CodeBuffer</code>，把它传给汇编器。上面提到的汇编命令，其实是汇编器类相应名称的函数，生成的过程，就是执行这些汇编命令形式函数的过程。每执行完一个汇编命令形式函数，就向CodeBuffer写入一段对应的机器码，全部执行完成，模板生成函数也就执行完了，就得到了一块全是机器码的内存块。这块机器码，构成执行函数，称作 <code>Codelet</code>，Codelet的入口地址，称作 <code>entry_point</code>。</p>
-<p>模板解释器初始化完成后，每个字节码指令与其指令执行函数entry的映射关系也构建完成，即 <strong>字节码指令派发表</strong>。</p>
-<p>需要执行字节码指令时，找到其指令执行函数entry，因为执行函数本身就是由机器码构成，跳转过去执行即可。</p>
-<h3 id="字节码派发"><a href="#字节码派发" class="headerlink" title="字节码派发"></a>字节码派发</h3><p>上面只是说了一条字节码的执行，一个方法有很多字节码，怎么依次执行这些字节码呢？</p>
-<p>简单说，可以使用一个循环，执行完一条就找到下一条。</p>
-<p>模板解释器采用了不同的做法。它在生成上面所述执行函数的字节码之后，还会插入一段派发代码。</p>
-<p>当前执行的字节码指令地址保存在 <code>_bcp_register</code>，即PC，程序计数器。字节码长度包括字节码指令长度 + 指令操作数长度。当前字节码指令地址 + 当前字节码长度就下一条字节码指令地址。例如，看前面字节码片段，<code>15:invokevirtual #6</code>，15即当前字节码指令地址偏移，<code>invokevirtual</code>字节码长度为 1字节指令长度 + 2字节操作数长度 &#x3D; 3字节，<code>15 + 3 = 18</code>，即下一条字节码指令地址偏移，对应 <code>18: aload 4</code>。</p>
-<p>找到了下一条字节码指令地址偏移，加上方法字节码指令起始地址，即为下一条字节码指令地址。由此可获取到下一条字节码指令，从字节码指令派发表找到其对应的执行函数entry，跳转过去，就开始执行下一条字节码指令。</p>
-<p>插入的派发代码就是执行这个过程。</p>
-<h3 id="方法调用"><a href="#方法调用" class="headerlink" title="方法调用"></a>方法调用</h3><p>前面所说，都是在字节码层面。一段字节码构成一个方法，那么方法是如何开始执行的？毕竟，方法不开始执行，又怎么会执行到字节码指令呢。</p>
-<p>JVM中，方法分很多种，有些是普通Java方法，有些是native方法，有些是预先高效实现好了的，比如数学方法sin&#x2F;cos等。这些方法，执行的环境差别很大，所以需要抽象出一层，来封装这些不同的操作，用以构建不同的执行环境。</p>
-<p>在JVM初始化时，用汇编器以汇编命令形式，生成一段机器码，类似字节码指令的执行函数，称作 <strong>方法例程</strong>。在解释器上，有一个映射表，存储着这些例程入口地址 <code>entry_point</code>。在方法链接阶段，找到这种方法的例程入口，设置到方法数据上。</p>
-<p>以普通Java方法为例，其例程需要分配和初始化局部变量，生成和维护Java栈帧，如果是 <code>synchronized</code>，还会加锁。之后找到方法的代码入口，即第一条字节码指令地址，设置到 <code>_bcp_register</code>，开始执行，类似前面的字节码派发。</p>
-<p>一条字节码指令执行完成后，就走前面的字节码派发过程，执行下一条字节码指令。</p>
-<p>方法的最后一条字节码指令，为 <code>return</code> 类指令。其工作大体是方法例程的反操作，比如，加过锁就解锁。最重要的就是清除该方法的栈帧，恢复栈到调用前状态。</p>
-<p>无论是从JVM C函数执行一个Java方法，还是invoke指令这种从Java方法调用另一个Java方法，都先把被调用方法的参数入栈，然后通过方法引用获取到方法例程入口。跳转过去，之后的工作就由例程接管，走前述流程。</p>
-<h3 id="JVM执行Java方法"><a href="#JVM执行Java方法" class="headerlink" title="JVM执行Java方法"></a>JVM执行Java方法</h3><p>JVM是用C++编写的，其运行后，是一个普通的进程，为了区分，称为C环境。而我们平时看到的Java代码，它们的调用运行等，称为Java环境。</p>
-<p>我们习以为常的，都是Java环境的认识。比如一个Java线程就是一个线程，一个Java方法就是一个方法，一个字节码指令就是一个指令。</p>
-<p>但站在C环境的角度，一切会变得截然不同。</p>
-<p>在C环境看来，Java字节码文件就是个普通的二进制文件，Java线程、Java方法、字节码指令，都是定义的一种不同对象，再普通不过。针对每个对象的不同操作，只是不同的程序逻辑而已。</p>
-<p>前面描述的那些，就是站在JVM的角度，处于C环境，看到的程序逻辑。比如Java方法调用，从C环境看，开始要生成新的Java栈帧并设置相关数据，结束要清除栈帧；从Java环境看，就是方法开始就自动有了一块栈空间，栈里还有方法执行需要的数据，结束了这块栈空间就自动回收了。这些Java环境的自动，就是C环境的程序逻辑保证的。</p>
-<p>凡事皆有开始。</p>
-<p>Java环境寄生于C环境，第一个Java方法被C环境执行后，Java环境才开始形成。</p>
-<p>一个Java方法，必然是由一个C函数负责执行的。</p>
-<p>Java方法需要栈，可以额外创建一个栈的对象，给Java方法执行用，入栈、出栈等，都是执行栈对象的函数而已。但是这样效率太低了，前面也说了，无论字节码指令还是方法例程，最终都是可直接执行的机器码。机器码可不认识这么个栈对象（事实上是逻辑上不用，机器码才不用），它们入栈出栈，这个栈是C环境的栈。所以自然而然，Java方法的栈，就直接寄生在负责执行它的C函数的栈里。除了栈操作，这些机器码还会使用各种寄存器。C环境的栈和各种寄存器，在执行的每一刻，它们的状态都是确定的，这是程序正确稳定执行的基础。如果这个C函数，因为执行Java方法，导致它的栈和各种寄存器，被修改得面目全非，JVM程序就乱了。</p>
-<p>所以，这个C函数，可以先在栈里分配一块空间，相当于局部变量，后面Java方法执行将用到的所有寄存器，都存到栈里。之后C函数会入栈Java方法参数，然后调用Java方法的方法例程。上面说过，Java方法执行完成后，会保证恢复栈到调用前状态，同时C函数也会把保存到栈里的各个寄存器恢复，C环境就恢复到了Java方法执行前的状态，仿佛从来没有执行过。事实上，C环境也不知道也不关心有没有执行过Java方法，因为可以认为这是其所在C函数的逻辑的一部分。</p>
-<p>这个C函数，为了效率，同样在JVM初始化时，用汇编器以汇编命令形式，生成为一段机器码，称作 <strong><code>call_stub</code> 例程</strong>。其例程入口地址 <code>entry_point</code> 同样会保存起来，JVM需要执行Java方法的时候，直接调用。</p>
-<p>方法例程和 <code>call_stub</code> 例程都是服务于方法执行，分别处理了不同层面的工作。方法例程负责处理Java方法执行相关的逻辑，比如初始化局部变量、生成栈帧等，而 <code>call_stub</code> 例程负责协调处理C函数到Java方法执行的准备和保护工作，比如保存、恢复寄存器，入栈Java方法参数等。</p>
-
-      
-    </div>
-
-    
-    
-    
-
-    <footer class="post-footer">
-        <div class="post-eof"></div>
-      
-    </footer>
-  </article>
-</div>
-
-
-
-
-    
-
-
-<div class="post-block">
-  
-  
-
-  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="">
-    <link itemprop="mainEntityOfPage" href="https://qilu.me/2019/03/09/2019-03-09/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Kaleo Feng">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="樂只君子">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
-      <meta itemprop="name" content="undefined | 樂只君子">
-      <meta itemprop="description" content="">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          <a href="/2019/03/09/2019-03-09/" class="post-title-link" itemprop="url">Java synchronized实现原理与优化：偏向锁、轻量级锁和重量级锁</a>
-        </h2>
-
-        <div class="post-meta-container">
-          <div class="post-meta">
-    <span class="post-meta-item">
-      <span class="post-meta-item-icon">
-        <i class="far fa-calendar"></i>
-      </span>
-      <span class="post-meta-item-text">发表于</span>
-
-      <time title="创建时间：2019-03-09 13:00:00" itemprop="dateCreated datePublished" datetime="2019-03-09T13:00:00+08:00">2019-03-09</time>
-    </span>
-    <span class="post-meta-item">
-      <span class="post-meta-item-icon">
-        <i class="far fa-folder"></i>
-      </span>
-      <span class="post-meta-item-text">分类于</span>
-        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-          <a href="/categories/Lore/" itemprop="url" rel="index"><span itemprop="name">Lore</span></a>
-        </span>
-    </span>
-
-  
-</div>
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-          <p>Java的 <strong>synchronized</strong> 关键字是实现线程同步的一个非常重要的方式，其实现原理和优化也是一个重点。本文不会对相关概念流程一一详解，而是着重讲解其中的关键点和可能的理解误区。</p>
-<p>首先，重中之重，请牢记以下三点：</p>
-<ul>
-<li><p>偏向锁适用于期望只有一个线程执行的场景</p>
-</li>
-<li><p>轻量级锁适用于多个线程交替执行的场景</p>
-</li>
-<li><p>重量级锁适用于多个线程同时执行的场景</p>
-</li>
-</ul>
-<p>掌握 <strong>synchronized</strong> 实现的过程中，可以先假设再求证。但任何时刻的任何理解，如果违背了上述三个适用原则，那一定是进行了错误的解读，多半是臆想了不存在的优化手段。</p>
-<p>锁的升级膨胀方向为 <strong>无锁（偏向锁）</strong> &#x3D;&gt; <strong>轻量级锁</strong> &#x3D;&gt; <strong>重量级锁</strong>，这个过程是单向的，对象头中的 <strong>markword</strong> 记录了当前锁状态信息。</p>
-<h2 id="偏向锁"><a href="#偏向锁" class="headerlink" title="偏向锁"></a>偏向锁</h2><p>Thread ID <strong>|</strong> Epoch <strong>|</strong> Age <strong>|</strong> Biasable <strong>|</strong> Lock</p>
-<p>分别简写为 <strong>TI</strong>、<strong>E</strong>、<strong>A</strong>、<strong>B</strong>、<strong>L</strong>。</p>
-<p>偏向锁是无锁的一种，与无锁一样，<strong>L</strong> 标志位为01，<strong>B</strong> 标志位表明当前是否可偏向：可偏向为1，不可偏向为0。不可偏向可能是由于系统未启用偏向锁，或者当前类已不可使用偏向锁，或者该对象已经不可偏向。</p>
-<p>如果启用了偏向锁，对象初始化后，<strong>L</strong>&#x3D;01，<strong>B</strong>&#x3D;1，即偏向锁可偏向。</p>
-<h3 id="常规获取锁流程"><a href="#常规获取锁流程" class="headerlink" title="常规获取锁流程"></a>常规获取锁流程</h3><p>第一个线程A第一次进入同步块获取锁，此时锁为匿名偏向模式，即 <strong>L</strong>&#x3D;01 &amp;&amp; <strong>B</strong>&#x3D;1, <strong>E</strong> 失效（后面解释），<strong>TI</strong>&#x3D;0，CAS操作成功获得锁，偏向锁现在偏向于线程A，然后执行同步块。同步块执行完后，线程A并不会主动释放偏向锁，也就是偏向锁保持偏向于线程A。</p>
-<p>线程A再次进入同步块获取锁时，<strong>TI</strong>&#x3D;A线程ID，<strong>E</strong> 为最新值有效，<strong>L</strong> 和 <strong>B</strong> 不变，表明锁当前已偏向于线程A，此时可以继续执行同步块。</p>
-<p>偏向锁的期望是一直只有线程A执行，这样锁将始终偏向于线程A。</p>
-<p>但这仅仅是期望而已，现实必然是残酷的。</p>
-<p>某刻，线程B也要进入该同步块，将试图获取锁。如果是与线程A同时，则如前述线程A流程，但CAS操作会失败。如果是在线程A已获得偏向锁后，由于锁当前偏向于线程A，即 <strong>L</strong>&#x3D;01 &amp;&amp; <strong>B</strong>&#x3D;01，<strong>E</strong> 有效，<strong>TI</strong>&#x3D;A线程ID，线程B将无法执行CAS操作来获取锁。此时，会采用启发式方式决定接下来流程：或者执行单个撤销偏向，或者执行批量重偏向，或者执行批量撤销偏向。方式是一样的，以对象和线程B作为参数构造一个VM_Operation <strong>vo</strong>，交给VM_Thread去执行，线程B会被挂起。</p>
-<p>直到运行至全局安全点，<strong>vo</strong> 会被执行，撤销偏向。此时有多种情况：线程A可能已经结束，线程A已经退出同步块，线程A还在同步块。三种情况 <strong>vo</strong> 都会修改 <strong>markword</strong> 将 <strong>B</strong> 设为0，偏向锁不可偏向。第三种情况还会升级到轻量级锁，线程A将持有该轻量级锁。全局安全点后，各线程恢复运行，线程B将被唤醒，继续往下执行，进入轻量级锁获取流程。</p>
-<p>以上是偏向锁期望的常规情况，我们可以看到，一旦有另外一个线程加入，就会进行撤销偏向锁，这就表明偏向锁已经不适用于该场景。偏向锁转成不可偏向是不可逆的。</p>
-<h3 id="优化手段"><a href="#优化手段" class="headerlink" title="优化手段"></a>优化手段</h3><p>常规之外，Java也对偏向锁进行了优化，批量重偏向和批量撤销偏向就是为此设计的。上面说到epoch有效或失效的情况，那怎么才是有效，怎么才是失效呢？</p>
-<p>每个class元数据里都有一个epoch记为 <strong>Ec</strong>，还有个偏向计数器 <strong>Bc</strong>，注意这个 <strong>Bc</strong> 是class概念上的。每进行一次撤销偏向，<strong>Bc</strong> +1。每个对象头 <strong>markword</strong> 也有一个epoch，即前面所说的 <strong>E</strong>。</p>
-<h4 id="批量重偏向"><a href="#批量重偏向" class="headerlink" title="批量重偏向"></a>批量重偏向</h4><p>当 <strong>Bc</strong>&#x3D;20时，系统认为该class类型的对象可能有不合适的使用情况，比如一个线程创建了大量对象并初始化，执行了同步块获取了偏向锁，但之后就将对象交给了线程B去处理。这种情况再也不需要偏向于线程A，转而偏向于线程B会非常合理。所以这时候，会执行批量重偏向。</p>
-<p>具体操作是，将class元数据上的 <strong>Ec</strong>+1，并遍历所有线程的线程栈。因为当前是在全局安全点，所以该操作是安全的。找到所有线程栈中该class的实例对象，如果还在锁着，就将该对象上的epoch设为 <strong>Ec</strong>。结果就是所有还被占用着的偏向锁对象的 <strong>E</strong>&#x3D;<strong>Ec</strong>，此为 <strong>E</strong> 有效，而已经退出同步块的 <strong>E</strong>!&#x3D;<strong>Ec</strong>，此为 <strong>E</strong> 失效。<strong>E</strong> 有效的情况， <strong>markword</strong> 的 <strong>B</strong> 也将设为1，而不是撤销偏向的0。</p>
-<p>这样，<strong>L</strong>&#x3D;01 &amp;&amp; <strong>B</strong>&#x3D;1，<strong>E</strong> 失效，后面另外的线程B获取该偏向锁时，就可以重偏向于线程B。</p>
-<h4 id="批量撤销偏向"><a href="#批量撤销偏向" class="headerlink" title="批量撤销偏向"></a>批量撤销偏向</h4><p>批量重偏向后，如果继续遇到撤销偏向锁操作，<strong>Bc</strong> 继续+1，如果在一定时间间隔（25秒）内，并没有达到阈值，这表明批量重偏向起到了很好的效果，<strong>Bc</strong> 将被清零重新开始。但如果达到了新的阈值 <strong>Bc</strong>&#x3D;40，表明该class类型对象设计使用上有问题，不再适合使用偏向锁模式，将执行批量撤销偏向。首先将class元数据置为无锁（偏向锁不可偏向）模式，然后遍历所有线程的线程栈，将所有该class的实例对象撤销偏向，使偏向锁不可偏向。</p>
-<h2 id="轻量级锁"><a href="#轻量级锁" class="headerlink" title="轻量级锁"></a>轻量级锁</h2><p>Lock Record <strong>|</strong> Lock</p>
-<p>分别简写为 <strong>LR</strong>、<strong>L</strong>。</p>
-<p>每次获取轻量级锁，都会创建新的线程锁记录，无论是否重入。</p>
-<p>如果当前对象处于无锁即 <strong>L</strong>&#x3D;01，线程CAS操作成功获取锁，<strong>LR</strong>&#x3D;当前线程锁记录指针，拷贝之前的对象 <strong>markword</strong> 到锁记录，即 <strong>displaced markword</strong>，记为 <strong>dhw</strong>。</p>
-<p>如果是重入，即线程递归获取锁，锁记录 <strong>dhw</strong> 置为0。</p>
-<p>非以上情况，或CAS操作失败，则进入升级膨胀成重量级锁流程。很多文章都写到，轻量级锁获取阶段，如果CAS失败会自旋一段时间，这是错误的。轻量级锁过程中没有自旋，若CAS失败则说明遇到了冲突，违背了前面三个适用原则中的轻量级锁适用于线程交替的场景。由此也可见，偏向锁CAS失败后，有可能最后直接升级成重量级锁。</p>
-<p>线程退出同步块会主动释放轻量级锁。如果是重入（<strong>dhw</strong>&#x3D;0），什么也不做，否则执行CAS操作释放锁，成功则对象回到无锁状态（偏向锁不可偏向），失败则意味着对象正处于升级膨胀中，或已经升级成重量级锁，需要唤醒已经挂起的线程。</p>
-<h2 id="重量级锁"><a href="#重量级锁" class="headerlink" title="重量级锁"></a>重量级锁</h2><p>Monitor Ptr <strong>|</strong> Lock</p>
-<p>分别记为 <strong>MP</strong>、<strong>L</strong>。</p>
-<h3 id="升级膨胀"><a href="#升级膨胀" class="headerlink" title="升级膨胀"></a>升级膨胀</h3><p>竞争轻量级锁失败，轻量级锁解锁失败，以及Object wait都可能进入升级膨胀成重量级锁流程。膨胀过程采用自旋，但这自旋还是并非一直占用CPU，间隔还是会挂起释放CPU的。膨胀过程中，如果已是重量级锁，则直接返回对象监视器；如果 <em>INFLATING</em> 状态则自旋等待；如果是轻量级锁中，则先CAS操作将对象 <strong>markword</strong> 置为 <em>INFLATING</em>，成功则由该线程执行后续膨胀操作，即构造对象监视器，设置相关数据，修改对象 <strong>markword</strong> 置为重量级锁信息，然后返回该对象监视器；如果是无锁（轻量级锁已释放），则同样构造对象监视器，设置相关数据，然后CAS修改对象 <strong>markword</strong> 置为重量级锁信息。</p>
-<h4 id="INFLATING"><a href="#INFLATING" class="headerlink" title="INFLATING"></a>INFLATING</h4><p>为什么需要 <em>INFLATING</em> 状态？可能多个线程都会尝试升级膨胀，处于轻量级锁中时，只有CAS成功设置 <em>INFLATING</em> 的线程只能真正执行膨胀操作，其他线程都会自旋等待膨胀完成。更深层次的原因是，升级膨胀需要CAS修改对象的 <strong>markword</strong> 置为重量级锁信息，其中包括完整的对象监视器指针。这意味着，要么在CAS之前构造好完整的对象监视器，但对象监视器需要 <strong>dhw</strong> 数据记为<strong>header</strong>，这时候可能轻量级锁已解锁，对象 <strong>markword</strong> 已改变， 那就无法由此获取到正确的 <strong>dhw</strong>。所以先CAS操作置对象 <strong>markword</strong> 为 <em>INFLATING</em>，成功后再去构造对象监视器。因为 <em>INFLATING</em> 时，轻量级锁解锁会失败，线程会进入升级膨胀流程，对象 <strong>markword</strong> 从而是稳定的不会改变，自然也就能获取到正确的 <strong>dhw</strong> 了。而处于无锁（轻量级锁已释放）时，对象 <strong>markword</strong> 本身就是对象监视器需要的 <strong>header</strong>，所以可以先构造对象监视器后，再进行CAS操作修改对象 <strong>markword</strong>。成功则膨胀完成，失败可能是因为别的线程已经成功执行了该操作，也可能是又被其他线程获得了轻量级锁，那么就释放掉该对象监视器，然后走前述处于轻量级锁中时的膨胀流程。</p>
-<h3 id="加锁解锁"><a href="#加锁解锁" class="headerlink" title="加锁解锁"></a>加锁解锁</h3><p>升级膨胀后只是成功构造了对象监视器，进入重量级锁阶段，但加锁解锁还需要多个线程再去竞争。</p>
-<p>竞争重量级锁，是通过CAS操作将对象监视器owner置为当前线程，成功则获得锁，或者是重入则记录递归次数，否则进入真正的锁竞争机制，这就是另外篇幅的内容了。</p>
-<p>一旦升级成重量级锁，加锁解锁就不再影响对象 <strong>markword</strong>，保持为 <strong>MP</strong>&#x3D;对象监视器指针，<strong>L</strong>&#x3D;10。</p>
-<h2 id="结语"><a href="#结语" class="headerlink" title="结语"></a>结语</h2><p>以上所有内容基于 <strong>OpenJDK 9</strong> 的实现，目的在于阐释其间的重点、难点和可能的思维误区。</p>
-<p>为便于宏观的把握和理解，一些细节做了简化，如hashcode对以上流程的影响等，本文不作讨论。</p>
-
-      
-    </div>
-
-    
-    
-    
-
-    <footer class="post-footer">
-        <div class="post-eof"></div>
-      
-    </footer>
-  </article>
-</div>
-
-
-
-
-    
-
-
-<div class="post-block">
-  
-  
-
-  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="">
-    <link itemprop="mainEntityOfPage" href="https://qilu.me/2018/10/18/2018-10-18/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Kaleo Feng">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="樂只君子">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
-      <meta itemprop="name" content="undefined | 樂只君子">
-      <meta itemprop="description" content="">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          <a href="/2018/10/18/2018-10-18/" class="post-title-link" itemprop="url">Java并发工具之AQS：共享模式实现细节</a>
-        </h2>
-
-        <div class="post-meta-container">
-          <div class="post-meta">
-    <span class="post-meta-item">
-      <span class="post-meta-item-icon">
-        <i class="far fa-calendar"></i>
-      </span>
-      <span class="post-meta-item-text">发表于</span>
-
-      <time title="创建时间：2018-10-18 21:00:00" itemprop="dateCreated datePublished" datetime="2018-10-18T21:00:00+08:00">2018-10-18</time>
+      <time title="创建时间：2023-04-08 10:00:00" itemprop="dateCreated datePublished" datetime="2023-04-08T10:00:00+08:00">2023-04-08</time>
     </span>
     <span class="post-meta-item">
       <span class="post-meta-item-icon">
@@ -746,645 +209,195 @@
     
     
     <div class="post-body" itemprop="articleBody">
-          <p>AQS(AbstractQueuedSynchronizer)是Java并发编程中最重要的工具之一，基于其实现了ReentrantLock、CountDownLatch、Semaphore和ReentrantReadWriteLock等，可以说是锁的基石。</p>
-<p>在深入AQS细节之前，先介绍另外一个基础工具，AQS使用其来控制线程。</p>
-<h2 id="LockSupport"><a href="#LockSupport" class="headerlink" title="LockSupport"></a>LockSupport</h2><p>顾名思义，是实现锁的辅助工具，其本身与锁无关，只是用来挂起和唤醒线程，主要实现了两个方法。</p>
+          <p>UE4版本 <code>v4.26</code></p>
+<p>操作系统 <code>CentOS 7</code></p>
+<p>编译器 <code>clang version 10.0.1</code></p>
+<h2 id="问题"><a href="#问题" class="headerlink" title="问题"></a>问题</h2><p>项目流水线执行 <code>BuildEngine</code> 构建引擎，时不时出现 <code>undefined reference</code> 的链接错误，重试后可构建成功。</p>
+<p>时常出现，重试成功，极大可能是链接时序问题。</p>
+<h2 id="复现"><a href="#复现" class="headerlink" title="复现"></a>复现</h2><p>本地服务器搭建类似环境，尝试复现该问题。</p>
+<p>查阅 UE4 构建工具的代码，在合适地方添加日志，分析日志结合代码，最终确定问题所在。</p>
+<p><code>UE4Editor</code> 可执行文件 依赖于 <code>libUE4Editor-Engine.so</code>，<code>libUE4Editor-Engine.so</code> 依赖于 <code>libUE4Editor-Xyz.so</code>，<code>UE4Editor</code> 不直接依赖 <code>libUE4Editor-Xyz.so</code>。</p>
+<p>链接错误出现在链接生成 <code>UE4Editor</code> 的时候，需要去链接 <code>libUE4Editor-Engine.so</code>，此时报错找不到 <code>libUE4Editor-Xyz.so</code> 中的符号， 即 <code>undefined reference</code>。</p>
+<h2 id="分析"><a href="#分析" class="headerlink" title="分析"></a>分析</h2><p>分析链接过程。</p>
+<h3 id="链接生成-libUE4Editor-Engine-so"><a href="#链接生成-libUE4Editor-Engine-so" class="headerlink" title="链接生成 libUE4Editor-Engine.so"></a>链接生成 <code>libUE4Editor-Engine.so</code></h3><p><code>libUE4Editor-Engine.so</code> 包含引擎核心代码，其会引用大量依赖其他模块，也有一些其他模块依赖它，这样就出现了模块循环依赖。</p>
+<p>UE4 构建时，考虑到了循环依赖情况，会采取类似下面措施处理。</p>
+<p>像 <code>libUE4Editor-Engine.so</code> 这种出现循环依赖的库，会进行两次链接。</p>
+<p>第一次链接仅链接生成库自身，链接脚本 <code>Link-libUE4Editor-Engine.so.link.sh</code>。</p>
+<p>关键链接参数：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">-Wl,--start-group -lpthread -lrt -ldl -Wl,--allow-shlib-undefined -Wl,--end-group</span><br></pre></td></tr></table></figure>
+
 <ul>
-<li><p>park<br>挂起当前线程。</p>
+<li>没有指定依赖的库 这样生成的 so 中不包含依赖库信息。</li>
+<li>指定允许未定义符号参数 <code>-Wl,--allow-shlib-undefined</code> 该参数会在链接时忽略未定义的符号，从而即使找不到依赖库的符号，也不会报错。</li>
+</ul>
+<p>第二次重链接会生成完整的库，链接脚本 <code>Relink-libUE4Editor-Engine.so.sh</code>。</p>
+<p>关键链接参数：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">-Wl,--start-group -lpthread -lrt -ldl -lUE4Editor-Xyz -Wl,--end-group</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>指定了依赖的库 参数 <code>-lUE4Editor-Xyz</code> 表示其依赖于 <code>libUE4Editor-Xyz.so</code>。</li>
+<li>没有指定允许未定义符号参数 默认情况下，链接可执行程序时有符号未定义，就会报错，但链接动态库时，会忽略未定义符号，不会报错。</li>
+</ul>
+<h3 id="链接生成-UE4Editor"><a href="#链接生成-UE4Editor" class="headerlink" title="链接生成 UE4Editor"></a>链接生成 <code>UE4Editor</code></h3><p>关键链接参数：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">--unresolved-symbols=ignore-in-shared-libs --start-group -lUE4Editor-Xyz --unresolved-symbols=ignore-in-shared-libs --end-group</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>指定了未定义符号处理策略参数 <code>--unresolved-symbols=ignore-in-shared-libs</code> 会忽略来自动态库中的未定义符号，不会报错。</li>
+</ul>
+<p>观察上述信息，如果出现符号未定义的链接错误，需要满足两点。</p>
+<ul>
+<li>链接参数指定的未定义符号处理策略参数无效，这样链接的时候就还是会去找动态库中未定义的符号。</li>
+<li>未定义的符号找不到，意味着其所在的依赖库信息找不到，也意味着链接生成可执行程序 <code>UE4Editor</code>时，去链接的动态库 <code>libUE4Editor-Engine.so</code>，是第一次链接生成的不包含依赖库信息的库，而不是重链接生成的那个完整的库。</li>
+</ul>
+<h2 id="定位"><a href="#定位" class="headerlink" title="定位"></a>定位</h2><p>UE4的每个编译或链接等操作，都被定义成一个 Action。</p>
+<p>此例中，仅考虑链接情况，有4个Action。</p>
+<ul>
+<li><code>libUE4Editor-Xyz.so 链接Action</code></li>
+<li><code>libUE4Editor-Engine.so 链接Action</code></li>
+<li><code>libUE4Editor-Engine.so 重链接Action</code></li>
+<li><code>UE4Editor 链接Action</code></li>
+</ul>
+<p>Action彼此之间有依赖关系，被依赖的Action先执行完成后，才会执行依赖Action。</p>
+<p>到这里一切看似正常，但 UE4 实际实现时，存在一个问题，重链接Action不会被依赖。</p>
+<p>此例中，<code>UE4Editor 链接Action</code> 应该依赖于 <code>libUE4Editor-Engine.so 重链接Action</code>，这样才能保证其链接的是一个完整库。但其实际依赖的仅是 <code>libUE4Editor-Engine.so 链接Action</code>。</p>
+<p><code>libUE4Editor-Engine.so 重链接Action</code>  和 <code>UE4Editor 链接Action</code> 都依赖于 <code>libUE4Editor-Engine.so 链接Action</code>，但彼此间没有依赖关系。所以在实际构建时，时序不确定。</p>
+<ul>
+<li><p>如果Engine重链接Action执行完成后，Editor才开始链接，Editor链接的就是完整的Engine.so，此时正常。</p>
 </li>
-<li><p>unpark<br>唤醒指定线程。</p>
+<li><p>如果Engine重链接Action执行中，Editor已经开始链接，Editor链接的就是Engine第一次链接后的那个不完整的Engine.so，这个so中不包含依赖库信息，所以Editor也就找不到 <code>libUE4Editor-Xyz.so</code>。</p>
 </li>
 </ul>
-<p>采用许可（permit）模型，park消费许可，unpark颁发许可，所以两个方法调用顺序没有影响，unpark也可以重复调用，许可只会有一个。</p>
-<h2 id="AQS"><a href="#AQS" class="headerlink" title="AQS"></a>AQS</h2><p>AQS本身也与锁无关，只是定义了一个资源和针对该资源的一组操作，比如获取资源、释放资源、资源获取失败线程进入等待队列并挂起，资源释放时唤醒等待线程使重新竞争资源等。</p>
-<p>等待队列采用先入先出（FIFO）队列，一旦进入队列，线程获取资源顺序保持严格有序，即从头结点后继节点依次向后。由于共享模式下多个线程可同时获取资源，为避免惊群效应，节点只关注其前驱节点，前驱节点获得资源成为头结点后，当前节点成为头结点后继节点，才有机会被唤醒并尝试获取资源。</p>
-<p>有两种模式，可以单独或组合使用。</p>
-<h3 id="独占模式（Exclusive）"><a href="#独占模式（Exclusive）" class="headerlink" title="独占模式（Exclusive）"></a>独占模式（Exclusive）</h3><p>资源同时只能被单个线程占有，获取和释放资源只能是一个线程，对应方法 <code>acquire</code> 和 <code>release</code>，模板方法 <code>tryAcquire</code> 和 <code>tryRelease</code>。</p>
-<p>独占模式相对比较简单，所以不费太多笔墨。</p>
-<h3 id="共享模式（Share）"><a href="#共享模式（Share）" class="headerlink" title="共享模式（Share）"></a>共享模式（Share）</h3><p>资源可以同时被多个线程占有，可以有多个线程获取和释放资源，对应方法 <code>acquireShared</code> 和 <code>releaseShared</code>，模板方法 <code>tryAcquireShared</code> 和 <code>tryReleaseShared</code>。</p>
-<p>先看一下方法源码，基于 <strong>OpenJDK 9</strong>。</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">void</span> <span class="title function_">acquireShared</span><span class="params">(<span class="type">int</span> arg)</span> &#123;</span><br><span class="line">    <span class="keyword">if</span> (tryAcquireShared(arg) &lt; <span class="number">0</span>)</span><br><span class="line">        doAcquireShared(arg);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">final</span> <span class="type">boolean</span> <span class="title function_">releaseShared</span><span class="params">(<span class="type">int</span> arg)</span> &#123;</span><br><span class="line">    <span class="keyword">if</span> (tryReleaseShared(arg)) &#123;</span><br><span class="line">        doReleaseShared();</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">false</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>模板方法 <code>tryAcquireShared</code> 和 <code>tryReleaseShared</code> 需要派生类实现，用来表达自己逻辑意义上的获取资源和释放资源行为。</p>
-<p>再看一下三个关键方法源码。</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">class</span> <span class="title class_">Node</span> &#123;</span><br><span class="line">        <span class="comment">/** Marker to indicate a node is waiting in shared mode */</span></span><br><span class="line">        <span class="keyword">static</span> <span class="keyword">final</span> <span class="type">Node</span> <span class="variable">SHARED</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">Node</span>();</span><br><span class="line">        <span class="comment">/** Marker to indicate a node is waiting in exclusive mode */</span></span><br><span class="line">        <span class="keyword">static</span> <span class="keyword">final</span> <span class="type">Node</span> <span class="variable">EXCLUSIVE</span> <span class="operator">=</span> <span class="literal">null</span>;</span><br><span class="line"></span><br><span class="line">        <span class="comment">/** waitStatus value to indicate thread has cancelled. */</span></span><br><span class="line">        <span class="keyword">static</span> <span class="keyword">final</span> <span class="type">int</span> <span class="variable">CANCELLED</span> <span class="operator">=</span>  <span class="number">1</span>;</span><br><span class="line">        <span class="comment">/** waitStatus value to indicate successor&#x27;s thread needs unparking. */</span></span><br><span class="line">        <span class="keyword">static</span> <span class="keyword">final</span> <span class="type">int</span> <span class="variable">SIGNAL</span>    <span class="operator">=</span> -<span class="number">1</span>;</span><br><span class="line">        <span class="comment">/** waitStatus value to indicate thread is waiting on condition. */</span></span><br><span class="line">        <span class="keyword">static</span> <span class="keyword">final</span> <span class="type">int</span> <span class="variable">CONDITION</span> <span class="operator">=</span> -<span class="number">2</span>;</span><br><span class="line">        <span class="comment">/**</span></span><br><span class="line"><span class="comment">         * waitStatus value to indicate the next acquireShared should</span></span><br><span class="line"><span class="comment">         * unconditionally propagate.</span></span><br><span class="line"><span class="comment">         */</span></span><br><span class="line">        <span class="keyword">static</span> <span class="keyword">final</span> <span class="type">int</span> <span class="variable">PROPAGATE</span> <span class="operator">=</span> -<span class="number">3</span>;</span><br></pre></td></tr></table></figure>
-
-<p><img src="/2018-10-18/aqs_shared.png" alt="shared"></p>
-<p>上面提到过，共享模式下，可以有多个线程占有资源，采用从头结点依次唤醒后继节点的方式，所以 <code>acquireShared</code> 和 <code>releaseShared</code> 都会调用到 <code>doReleaseShared</code>，该方法即用来执行唤醒后继节点的操作。</p>
-<p>根据源码，两个模板方法有以下含义。</p>
-<ul>
-<li><p>tryAcquireShared<br>返回值类型为int，&lt;0表示获取资源失败，线程需要进入等待队列并挂起，&gt;&#x3D;0表示获取资源成功，如果线程在等待队列，所在节点变为头结点，其中&gt;0表明还有剩余资源，需要唤醒后继节点线程去尝试获取资源。此种情况下只能唤醒后继共享节点，因为前面是共享节点线程获取到资源，只有同类的共享模式线程有资格”分享”剩余资源。</p>
-</li>
-<li><p>tryReleaseShared<br>返回值类型为boolean，false为释放资源失败，true为释放资源成功，需要尝试唤醒后继节点线程去获取资源。此种情况下可以唤醒后继独占或共享节点，因为是资源被释放，独占或共享模式线程都有资格竞争资源。</p>
-</li>
-</ul>
-<p>这种从头结点后继节点依次唤醒的设计，称作 <strong>propagate</strong>，意为传播。纵观整个设计逻辑，可以得到一个规则：一旦释放资源成功，在等待队列中的节点应该有机会被传播到，从而节点线程被唤醒重新尝试获取资源，即传播链应该始终存在，不能中断，因为一旦中断，等待队列中的节点就可能会永远hang住无法被唤醒，整个AQS就失效了。这个规则是后续讨论的基础。</p>
-<p>整体实现逻辑可以自行阅读理解，不再赘述，下面探讨部分重要的实现细节。</p>
-<p>图上红字提出了4个问题：</p>
-<ol>
-<li><p><code>doReleaseShared</code> 为什么使用for循环？</p>
-</li>
-<li><p><code>doReleaseShared</code> 中的 <em>PROPAGATE</em> 状态有什么意义？</p>
-</li>
-<li><p><code>doReleaseShared</code> 为什么在 <code>h == head</code> 时才break，即为什么head改变要重试？</p>
-</li>
-<li><p><code>setHeadAndPropagate</code> 为什么要同时判断新老两个head结点的waitStatus？</p>
-</li>
-</ol>
-<p>我们构造若干并发场景，尝试解答。</p>
-<h5 id="场景一"><a href="#场景一" class="headerlink" title="场景一"></a>场景一</h5><p>假定此时，无问题1-4中的所有元素。</p>
-<p>此时等待队列如图所示：</p>
-<p><img src="/2018-10-18/1.png" alt="scene1"></p>
-<ol>
-<li><p>T<sub>A</sub> <code>releaseShared</code> 调用 <code>tryReleaseShared</code> 释放资源成功，执行 <code>doReleaseShared</code>，此时 <code>h = head, h.waitStatus = SIGNAL</code>，CAS成功，<code>h.waitStatus = 0</code>，调用<code>unparkSuccessor</code> 唤醒后继节点。</p>
-</li>
-<li><p>T<sub>1</sub> 被唤醒，<code>tryAcquireShared</code> 获取资源成功，<code>r = 0</code>，执行 <code>setHeadAndPropagate</code> 至 <code>setHead</code> 前，此时 <code>propagate = r = 0</code>。</p>
-</li>
-<li><p>T<sub>B</sub> <code>releaseShared</code> 调用 <code>tryReleaseShared</code> 释放资源成功，执行 <code>doReleaseShared</code>，由于此时 <code>h = head, h.waitStatus = 0</code>，CAS失败，无法唤醒后继节点。</p>
-</li>
-<li><p>T<sub>1</sub> 继续执行，由于 <code>propagate = 0, h.waitStatus = 0</code>，无法调用 <code>doReleaseShared</code>唤醒后继节点。</p>
-</li>
-</ol>
-<p>此场景下，T<sub>B</sub> 的资源释放丢失了，传播链中断，违背了上面提到的规则，AQS失效。</p>
-<h5 id="场景二"><a href="#场景二" class="headerlink" title="场景二"></a>场景二</h5><p>环境同场景一，但加入问题2的 <em>PROPAGATE</em> 状态。</p>
-<ol>
-<li><p>T<sub>A</sub> <code>releaseShared</code> 调用 <code>tryReleaseShared</code> 释放资源成功，执行 <code>doReleaseShared</code>，此时 <code>h = head, h.waitStatus = SIGNAL</code>，CAS成功，<code>h.waitStatus = 0</code>，调用<code>unparkSuccessor</code> 唤醒后继节点。</p>
-</li>
-<li><p>T<sub>1</sub> 被唤醒，<code>tryAcquireShared</code> 获取资源成功，<code>r = 0</code>，执行 <code>setHeadAndPropagate</code> 至 <code>setHead</code> 前，此时 <code>propagate = r = 0</code>。</p>
-</li>
-<li><p>T<sub>B</sub> <code>releaseShared</code> 调用 <code>tryReleaseShared</code> 释放资源成功，执行 <code>doReleaseShared</code>，由于此时 <code>h = head, h.waitStatus = 0</code>，走 <code>else if</code> 逻辑，CAS成功，<code>h.waitStatus = PROPAGATE</code>。</p>
-</li>
-<li><p>T<sub>1</sub> 继续执行，由于 <code>propagate = 0, h.waitStatus = PROPAGATE &lt; 0</code>，调用 <code>doReleaseShared</code>唤醒后继节点。</p>
-</li>
-</ol>
-<p>加入 <em>PROPAGATE</em> 状态后，传播链得以延续。</p>
-<p>但仅仅加入 <em>PROPAGATE</em> 状态是否就可以了呢？</p>
-<h5 id="场景三"><a href="#场景三" class="headerlink" title="场景三"></a>场景三</h5><p>环境同场景二。</p>
-<ol>
-<li><p>T<sub>A</sub> <code>releaseShared</code> 调用 <code>tryReleaseShared</code> 释放资源成功，执行 <code>doReleaseShared</code>，此时 <code>h = head, h.waitStatus = SIGNAL</code>，CAS成功，<code>h.waitStatus = 0</code>，调用<code>unparkSuccessor</code> 唤醒后继节点。</p>
-</li>
-<li><p>T<sub>1</sub> 被唤醒，<code>tryAcquireShared</code> 获取资源成功，<code>r = 0</code>，执行 <code>setHeadAndPropagate</code> 至 <code>setHead</code> 前，此时 <code>propagate = r = 0</code>。</p>
-</li>
-<li><p>T<sub>B</sub> <code>releaseShared</code> 调用 <code>tryReleaseShared</code> 释放资源成功，执行 <code>doReleaseShared</code> 至 <code>Node h = head</code> 后。</p>
-</li>
-<li><p>T<sub>1</sub> 继续执行，由于 <code>propagate = 0, h.waitStatus = 0</code>，无法调用 <code>doReleaseShared</code>唤醒后继节点。</p>
-</li>
-<li><p>T<sub>B</sub> 继续执行，此时 <code>h.waitStatus = 0</code>，走 <code>else if</code> 逻辑，CAS成功，<code>h.waitStatus = PROPAGATE</code>。</p>
-</li>
-</ol>
-<p>此场景下，操作5已经没有意义，传播链已经中断。</p>
-<p>可见，仅仅加入 <em>PROPAGATE</em> 是不够的。场景三的问题出在，进行操作5时，head已经变成新的（即原head的后继节点），再把旧的 <code>head.waitStatus</code> 设置为 <em>PROPAGATE</em> 状态起不到任何作用。</p>
-<h5 id="场景四"><a href="#场景四" class="headerlink" title="场景四"></a>场景四</h5><p>环境同场景三，但加入问题3的 <code>h == head</code>，这样必然可能要重试，所以也要加入问题1的 <code>for</code>。</p>
-<ol>
-<li><p>T<sub>A</sub> <code>releaseShared</code> 调用 <code>tryReleaseShared</code> 释放资源成功，执行 <code>doReleaseShared</code>，此时 <code>h = head, h.waitStatus = SIGNAL</code>，CAS成功，<code>h.waitStatus = 0</code>，调用<code>unparkSuccessor</code> 唤醒后继节点。</p>
-</li>
-<li><p>T<sub>1</sub> 被唤醒，<code>tryAcquireShared</code> 获取资源成功，<code>r = 0</code>，执行 <code>setHeadAndPropagate</code> 至 <code>setHead</code> 前，此时 <code>propagate = r = 0</code>。</p>
-</li>
-<li><p>T<sub>B</sub> <code>releaseShared</code> 调用 <code>tryReleaseShared</code> 释放资源成功，执行 <code>doReleaseShared</code> 至 <code>Node h = head</code> 后。</p>
-</li>
-<li><p>T<sub>1</sub> 继续执行，由于 <code>propagate = 0, h.waitStatus = 0</code>，无法调用 <code>doReleaseShared</code>唤醒后继节点。</p>
-</li>
-<li><p>T<sub>B</sub> 继续执行，此时 <code>h.waitStatus = 0</code>，走 <code>else if</code> 逻辑，CAS成功，<code>h.waitStatus = PROPAGATE</code>；继续执行，由于head已经在操作4中改变， <code>h == head</code> 返回false，无法退出for循环，将进行重试，<code>h = head, h.waitStatus = SIGNAL</code>，CAS成功，<code>h.waitStatus = 0</code>，调用<code>unparkSuccessor</code> 唤醒后继节点。</p>
-</li>
-</ol>
-<p>加入 <code>for</code> 和 <code>h == head</code> 后，传播链得以延续。</p>
-<p>这样就毫无破绽万事大吉了吗？</p>
-<h5 id="场景五"><a href="#场景五" class="headerlink" title="场景五"></a>场景五</h5><p>假定此时，有问题1-3中的元素，无问题4中的元素，即不会获取新head并检查其waiStatus，对应代码中的 <code>(h = head) == null || h.waitStatus &lt; 0</code>（旧head的waitStatus检查的必要性已经在上述场景中证明过了）。</p>
-<p>此时等待队列如图所示：</p>
-<p><img src="/2018-10-18/2.png" alt="scene2"></p>
-<ol>
-<li><p>T<sub>A</sub> <code>releaseShared</code> 调用 <code>tryReleaseShared</code> 释放资源成功，执行 <code>doReleaseShared</code>，此时 <code>h = head, h.waitStatus = SIGNAL</code>，CAS成功，<code>h.waitStatus = 0</code>，调用<code>unparkSuccessor</code> 唤醒后继节点。</p>
-</li>
-<li><p>T<sub>1</sub> 被唤醒，<code>tryAcquireShared</code> 获取资源成功，<code>r = 0</code>，执行 <code>setHeadAndPropagate</code> 至 <code>setHead</code> 后，head改变为T<sub>1</sub>节点记为h1，h仍为旧head，此时 <code>h.waitStatus = 0, h1.waitStatus = 0</code>（因为T<sub>1</sub> 没有后继节点，其waitStatus默认为0）。</p>
-</li>
-<li><p>T<sub>2</sub> <code>acquireShared</code>，调用 <code>tryAcquireShared</code> 获取资源，由于此时没有多余资源，获取资源失败，进入等待队列，执行至 <code>shouldParkAfterFailedAcquire</code> 前，此时 T<sub>2</sub> 已成为 T<sub>1</sub><br>也即head的后继节点，但因为尚未park，仍然 <code>h1 = head, h1.waitStatus = 0</code>。</p>
-</li>
-<li><p>T<sub>B</sub> <code>releaseShared</code> 调用 <code>tryReleaseShared</code> 释放资源成功，执行 <code>doReleaseShared</code>，<code>h = head, h.waitStatus = 0</code>，走 <code>else if</code> 逻辑，CAS成功，<code>h.waitStatus = PROPAGATE</code>。</p>
-</li>
-<li><p>T<sub>1</sub> 继续执行，由于 <code>propagate = 0, h.waitStatus = 0</code>，无法调用 <code>doReleaseShared</code>唤醒后继节点。</p>
-</li>
-<li><p>T<sub>2</sub> 继续执行，park至head后继节点，<code>head.waitStatus = SIGNAL</code>。</p>
-</li>
-</ol>
-<p>此场景下，操作6已经没有意义，传播链已经中断。</p>
-<p>可见，这样是不够的，因为操作4修改的是新head，但操作5只检查了旧head，导致没有起到效果。</p>
-<p>加入问题4的元素 <code>(h = head) == null || h.waitStatus &lt; 0</code> 后，显而易见，操作5中会检查新head的waitStatus，因为其在操作4中已经被置为 <em>PROPAGATE</em>，所以检查结果为true，进而调用到<code>doReleaseShared</code> 唤醒后继节点，无论T<sub>2</sub> 是否park，都可以被唤醒，传播链得以延续。</p>
-<h2 id="结语"><a href="#结语" class="headerlink" title="结语"></a>结语</h2><p>以上通过构建若干并发场景，验证了AQS部分实现细节的必要性，也见识了设计的精巧细致。理解了AQS共享模式，再去看独占模式就相对容易了。及至基于此实现的各种锁，也就不难理解和掌握了。</p>
-
-      
-    </div>
-
-    
-    
-    
-
-    <footer class="post-footer">
-        <div class="post-eof"></div>
-      
-    </footer>
-  </article>
-</div>
-
-
-
-
-    
-
-
-<div class="post-block">
-  
-  
-
-  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="">
-    <link itemprop="mainEntityOfPage" href="https://qilu.me/2018/04/27/2018-04-27/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Kaleo Feng">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="樂只君子">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
-      <meta itemprop="name" content="undefined | 樂只君子">
-      <meta itemprop="description" content="">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          <a href="/2018/04/27/2018-04-27/" class="post-title-link" itemprop="url">Sublime Text3时间戳查看转换插件开发</a>
-        </h2>
-
-        <div class="post-meta-container">
-          <div class="post-meta">
-    <span class="post-meta-item">
-      <span class="post-meta-item-icon">
-        <i class="far fa-calendar"></i>
-      </span>
-      <span class="post-meta-item-text">发表于</span>
-
-      <time title="创建时间：2018-04-27 17:00:00" itemprop="dateCreated datePublished" datetime="2018-04-27T17:00:00+08:00">2018-04-27</time>
-    </span>
-    <span class="post-meta-item">
-      <span class="post-meta-item-icon">
-        <i class="far fa-folder"></i>
-      </span>
-      <span class="post-meta-item-text">分类于</span>
-        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-          <a href="/categories/Tech/" itemprop="url" rel="index"><span itemprop="name">Tech</span></a>
-        </span>
-    </span>
-
-  
-</div>
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-          <p>平常配置表中，经常需要用到时间配置，比如活动开始结束。从可读性上，我们喜欢 <code>2017-04-27 17:00:00</code>，从程序角度，我们喜欢用 <code>493283600</code>。前者是包含时区概念的，而后者时区无关，所以一般推荐直接使用数字时间戳格式来配置。</p>
-<p>实际配置时，之前一直用MySQL的 <code>FROM_UNIXTIME()</code> 和 <code>UNIX_TIMESTAMP</code> 函数，或者使用网页工具进行时间戳查看转换，十分繁琐。</p>
-<p>做得多了，就想到为什么不写个插件，直接在编辑器里查看转换好了。参考了网络上的一些示例并查阅了Sublime的相关API，过程如下。</p>
-<p>1.依次执行 <strong>Tools</strong> -&gt; <strong>Developer</strong> -&gt; <strong>New Plugin</strong>，新建一个插件脚本，命名为 <strong>timestamp.py</strong><br><img src="/2018-04-27/1.gif" alt="Image Title"></p>
-<p>2.添加脚本代码，具体可以看注释：</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> datetime <span class="keyword">import</span> datetime</span><br><span class="line"><span class="keyword">import</span> re</span><br><span class="line"><span class="keyword">import</span> time</span><br><span class="line"><span class="keyword">import</span> sublime</span><br><span class="line"><span class="keyword">import</span> sublime_plugin</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">getParseResult</span>(<span class="params">text</span>):</span><br><span class="line">    <span class="comment">#patten1 匹配10位整数时间戳（1493283600）</span></span><br><span class="line">    pattern1 = re.<span class="built_in">compile</span>(<span class="string">&#x27;^\d&#123;10&#125;&#x27;</span>)</span><br><span class="line">    match1 = pattern1.<span class="keyword">match</span>(text)</span><br><span class="line"></span><br><span class="line">    <span class="comment">#pattern2 匹配可读时间格式（2017-04-27 17:00:00）</span></span><br><span class="line">    pattern2 = re.<span class="built_in">compile</span>(<span class="string">&#x27;^(\d&#123;4&#125;)-(\d&#123;1,2&#125;)-(\d&#123;1,2&#125;)\s(\d&#123;1,2&#125;):(\d&#123;1,2&#125;):(\d&#123;1,2&#125;)&#x27;</span>)</span><br><span class="line">    match2 = pattern2.<span class="keyword">match</span>(text)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> text <span class="keyword">in</span> (<span class="string">&#x27;now&#x27;</span>):</span><br><span class="line">        result = datetime.now().strftime(<span class="string">&#x27;%Y-%m-%d %H:%M:%S&#x27;</span>)</span><br><span class="line">    <span class="keyword">elif</span> text <span class="keyword">in</span> (<span class="string">&#x27;ts&#x27;</span>, <span class="string">&#x27;timestamp&#x27;</span>):</span><br><span class="line">        result = <span class="built_in">str</span>(time.time()).split(<span class="string">&#x27;.&#x27;</span>)[<span class="number">0</span>]</span><br><span class="line">    <span class="keyword">elif</span> match1:</span><br><span class="line">        timestamp = <span class="built_in">int</span>(match1.group(<span class="number">0</span>))</span><br><span class="line">        timeArray = time.localtime(timestamp)</span><br><span class="line">        result = time.strftime(<span class="string">&#x27;%Y-%m-%d %H:%M:%S&#x27;</span>, timeArray)</span><br><span class="line">    <span class="keyword">elif</span> match2:</span><br><span class="line">        timeArray = time.strptime(text, <span class="string">&quot;%Y-%m-%d %H:%M:%S&quot;</span>)</span><br><span class="line">        result = <span class="built_in">str</span>(time.mktime(timeArray)).split(<span class="string">&#x27;.&#x27;</span>)[<span class="number">0</span>]</span><br><span class="line">    <span class="keyword">return</span> result</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">TimestampCommand</span>(sublime_plugin.TextCommand):</span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">run</span>(<span class="params">self, edit</span>):</span><br><span class="line">        <span class="keyword">for</span> s <span class="keyword">in</span> self.view.sel():</span><br><span class="line">            <span class="keyword">if</span> s.empty() <span class="keyword">or</span> s.size() &lt;= <span class="number">1</span>:</span><br><span class="line">                <span class="keyword">break</span></span><br><span class="line"></span><br><span class="line">            <span class="comment"># 只处理第一个Region</span></span><br><span class="line">            text = self.view.substr(s)</span><br><span class="line">            <span class="built_in">print</span>(text)</span><br><span class="line"></span><br><span class="line">            <span class="comment"># 得到转换结果</span></span><br><span class="line">            result = getParseResult(text)</span><br><span class="line"></span><br><span class="line">            <span class="comment"># 进行文本替换并弹窗显示</span></span><br><span class="line">            self.view.replace(edit, s, result)</span><br><span class="line">            self.view.show_popup(result, sublime.HIDE_ON_MOUSE_MOVE_AWAY, -<span class="number">1</span>, <span class="number">600</span>, <span class="number">600</span>)</span><br><span class="line">            <span class="keyword">break</span></span><br></pre></td></tr></table></figure>
-
-<p>3.进行快捷键绑定，依次执行<strong>Project</strong> -&gt; <strong>Key Bindings</strong>，添加代码<code>&#123; &quot;keys&quot;: [&quot;ctrl+t&quot;], &quot;command&quot;: &quot;timestamp&quot;&#125;</code><br><img src="/2018-04-27/2.gif" alt="Image Title"></p>
-<p>很简单，一个方便查看转换时间戳的插件就写好了。选中文本，按快捷键<strong>CTRL+t</strong>，效果图：<br><img src="/2018-04-27/3.gif" alt="Image Title"></p>
-<p>代码放在了<a target="_blank" rel="noopener" href="https://github.com/KaleoFeng/Misc">Github</a>，更多欢迎访问个人网站<a target="_blank" rel="noopener" href="https://www.metazion.com/">Metazion</a></p>
-
-      
-    </div>
-
-    
-    
-    
-
-    <footer class="post-footer">
-        <div class="post-eof"></div>
-      
-    </footer>
-  </article>
-</div>
-
-
-
-
-    
-
-
-<div class="post-block">
-  
-  
-
-  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="">
-    <link itemprop="mainEntityOfPage" href="https://qilu.me/2018/03/18/2018-03-18/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Kaleo Feng">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="樂只君子">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
-      <meta itemprop="name" content="undefined | 樂只君子">
-      <meta itemprop="description" content="">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          <a href="/2018/03/18/2018-03-18/" class="post-title-link" itemprop="url">Spring Boot + Freemarker多语言国际化的实现</a>
-        </h2>
-
-        <div class="post-meta-container">
-          <div class="post-meta">
-    <span class="post-meta-item">
-      <span class="post-meta-item-icon">
-        <i class="far fa-calendar"></i>
-      </span>
-      <span class="post-meta-item-text">发表于</span>
-
-      <time title="创建时间：2018-03-18 14:13:00" itemprop="dateCreated datePublished" datetime="2018-03-18T14:13:00+08:00">2018-03-18</time>
-    </span>
-    <span class="post-meta-item">
-      <span class="post-meta-item-icon">
-        <i class="far fa-folder"></i>
-      </span>
-      <span class="post-meta-item-text">分类于</span>
-        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-          <a href="/categories/Tech/" itemprop="url" rel="index"><span itemprop="name">Tech</span></a>
-        </span>
-    </span>
-
-  
-</div>
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-          <p>最近在写一些Web的东西，技术上采用了 <strong>Spring Boot</strong> + <strong>Bootstrap</strong> + <strong>jQuery</strong> + <strong>Freemarker</strong>。过程中查了大量的资料，也感受到了前端技术的分裂，每种东西都有N种实现，组合起来，每种解决方案的资料却很有限。</p>
-<p>这篇文章记录下多语言国际化的实现，以支持中英文为例。</p>
-<h3 id="页面内容的国际化"><a href="#页面内容的国际化" class="headerlink" title="页面内容的国际化"></a>页面内容的国际化</h3><p>1.定义页面文本配置文件的路径，在 <em>application.properties</em> 里添加 <code>spring.messages.basename=i18n/messages</code></p>
-<p>2.在 <em>resources&#x2F;</em> 目录下创建上述目录，添加3个配置文件 <em>messages.properties</em>、<em>messages_zh.properties</em>、<em>messages_en.properties</em>，分别对应默认，中文和英文配置，完整路径为 <em>resources&#x2F;i18n&#x2F;messages.properties</em></p>
-<p>3.在配置文件里定义每条需要国际化的文本，比如中文 <code>index.title=麦希工具 - 您身边的助手 </code>，英文 <code>Meta Tool - Your Best Assistant</code></p>
-<p>4.在Freemarker文件里使用 <code>&lt;@spring.message &quot;&quot;/&gt;</code> 来输出文本，比如 <code>&lt;title&gt;&lt;@spring.message &quot;index.title&quot;/&gt;&lt;/title&gt;</code></p>
-<h3 id="验证内容的国际化"><a href="#验证内容的国际化" class="headerlink" title="验证内容的国际化"></a>验证内容的国际化</h3><p>所谓验证内容，就是比如在填form表单的时候，有些字段有格式或数值等的要求，表单提交时，应该验证数据是否符合要求。验证又分前端验证和后端验证，一般结合使用。</p>
-<p>前端用来验证格式（必须是数字&#x2F;英文&#x2F;邮件）等，如：</p>
-<figure class="highlight html"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">input</span> <span class="attr">type</span>=<span class="string">&quot;text&quot;</span> <span class="attr">name</span>=<span class="string">&quot;height&quot;</span> <span class="attr">id</span>=<span class="string">&quot;height&quot;</span> <span class="attr">class</span>=<span class="string">&quot;form-control col-2&quot;</span> <span class="attr">placeholder</span>=<span class="string">&quot;&quot;</span> <span class="attr">pattern</span>=<span class="string">&quot;^[1-9][0-9]&#123;2&#125;$&quot;</span> <span class="attr">required</span>&gt;</span></span><br></pre></td></tr></table></figure>
-
-<p>这里pattern使用正则表达式，定义了输入框输入字符的范围和数量。</p>
-<p>后端用来验证数值（必须大于18岁）等，可以在Spring Boot的VO对象里，以添加注解的形式实现，如：</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Min(value = 100, message = &quot;不能低于100cm&quot;)</span></span><br><span class="line"><span class="meta">@Max(value = 250, message = &quot;不能高于250cm&quot;)</span></span><br><span class="line"><span class="keyword">private</span> String height;</span><br></pre></td></tr></table></figure>
-
-<p>这里就出现了问题，即注解也应该采用配置文件的形式，以支持多语言切换，这就是验证内容的国际化。</p>
-<p>1.定义验证文本配置文件的路径，在 <em>application.properties</em> 里添加 <code>spring.messages.basename=i18n/messages,i18n/ValidationMessages</code>，前面的是第一节的页面文本，后面的是验证文本</p>
-<p>2.在 <em>resources&#x2F;</em> 目录下创建上述目录，添加3个配置文件 <em>ValidationMessages.properties</em>、<em>ValidationMessages_zh.properties</em>、<em>ValidationMessages_en.properties</em>，分别对应默认，中文和英文配置，完整路径为 <em>resources&#x2F;i18n&#x2F;ValidationMessages.properties</em></p>
-<p>3.在配置文件里定义每条需要国际化的文本，比如中文 <code>vm.bmi.height.lower=不能低于100cm </code>，英文 <code>vm.bmi.height.lower=Can Not Lower Than 100cm</code></p>
-<p>4.与页面文本相比，这里要多做一步，即在代码里覆盖默认验证器的配置，在代码根目录添加以下文件：</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Configuration</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">CustomConfiguration</span> <span class="keyword">implements</span> <span class="title class_">WebMvcConfigurer</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Autowired</span></span><br><span class="line">    <span class="keyword">private</span> MessageSource messageSource;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> Validator <span class="title function_">getValidator</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> localValidatorFactoryBean();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Bean</span></span><br><span class="line">    <span class="keyword">public</span> LocalValidatorFactoryBean <span class="title function_">localValidatorFactoryBean</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="type">LocalValidatorFactoryBean</span> <span class="variable">validator</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">LocalValidatorFactoryBean</span>();</span><br><span class="line">        validator.setValidationMessageSource(messageSource);</span><br><span class="line">        <span class="keyword">return</span> validator;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>5.在接收表达的VO对象的属性上，使用验证文本作为提示：</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">BmiVo</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Min(value = 100, message = &quot;&#123;vm.bmi.height.lower&#125;&quot;)</span></span><br><span class="line">    <span class="meta">@Max(value = 250, message = &quot;&#123;vm.bmi.height.upper&#125;&quot;)</span></span><br><span class="line">    <span class="keyword">private</span> String height;</span><br></pre></td></tr></table></figure>
-
-<p>6.在表单上添加验证失败后的提示，使用 <code>&lt;@spring.bind &quot;&quot;/&gt;</code> 绑定VO对象的属性，使用 <code>&lt;@spring.showErrors &quot;&quot;/&gt;</code> 显示属性验证失败的提示：</p>
-<figure class="highlight html"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">div</span> <span class="attr">id</span>=<span class="string">&quot;div-height&quot;</span> <span class="attr">class</span>=<span class="string">&quot;form-group form-row align-items-center&quot;</span>&gt;</span></span><br><span class="line">        &lt;@spring.bind &quot;vo.height&quot;/&gt;</span><br><span class="line">        <span class="tag">&lt;<span class="name">label</span> <span class="attr">for</span>=<span class="string">&quot;height&quot;</span> <span class="attr">class</span>=<span class="string">&quot;col-form-label text-center offset-3 col-2&quot;</span>&gt;</span>&lt;@spring.message &quot;bmi.height&quot;/&gt;<span class="tag">&lt;/<span class="name">label</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">input</span> <span class="attr">type</span>=<span class="string">&quot;text&quot;</span> <span class="attr">name</span>=<span class="string">&quot;height&quot;</span> <span class="attr">id</span>=<span class="string">&quot;height&quot;</span> <span class="attr">class</span>=<span class="string">&quot;form-control col-2&quot;</span> <span class="attr">placeholder</span>=<span class="string">&quot;&quot;</span> <span class="attr">pattern</span>=<span class="string">&quot;^[1-9][0-9]&#123;2&#125;$&quot;</span> <span class="attr">required</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">span</span> <span class="attr">class</span>=<span class="string">&quot;text-primary text-center col-1&quot;</span>&gt;</span>cm<span class="tag">&lt;/<span class="name">span</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">span</span> <span class="attr">class</span>=<span class="string">&quot;text-danger col-4&quot;</span>&gt;</span>&lt;@spring.showErrors &quot;&quot;/&gt;<span class="tag">&lt;/<span class="name">span</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">div</span>&gt;</span></span><br></pre></td></tr></table></figure>
-
-<p>这样就做到了页面内容和验证内容的多语言国际化支持，具体示例参看<a target="_blank" rel="noopener" href="https://www.metazion.net/">Meta Tool</a></p>
-
-      
-    </div>
-
-    
-    
-    
-
-    <footer class="post-footer">
-        <div class="post-eof"></div>
-      
-    </footer>
-  </article>
-</div>
-
-
-
-
-    
-
-
-<div class="post-block">
-  
-  
-
-  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="">
-    <link itemprop="mainEntityOfPage" href="https://qilu.me/2017/08/12/2017-08-12/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Kaleo Feng">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="樂只君子">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
-      <meta itemprop="name" content="undefined | 樂只君子">
-      <meta itemprop="description" content="">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          <a href="/2017/08/12/2017-08-12/" class="post-title-link" itemprop="url">并发编程概述：内存屏障、Java volatile</a>
-        </h2>
-
-        <div class="post-meta-container">
-          <div class="post-meta">
-    <span class="post-meta-item">
-      <span class="post-meta-item-icon">
-        <i class="far fa-calendar"></i>
-      </span>
-      <span class="post-meta-item-text">发表于</span>
-
-      <time title="创建时间：2017-08-12 13:00:00" itemprop="dateCreated datePublished" datetime="2017-08-12T13:00:00+08:00">2017-08-12</time>
-    </span>
-    <span class="post-meta-item">
-      <span class="post-meta-item-icon">
-        <i class="far fa-folder"></i>
-      </span>
-      <span class="post-meta-item-text">分类于</span>
-        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-          <a href="/categories/Lore/" itemprop="url" rel="index"><span itemprop="name">Lore</span></a>
-        </span>
-    </span>
-
-  
-</div>
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-          <p>并发编程三条特性：</p>
-<ul>
-<li><p>原子性<br>原子性是指一个操作是不可中断的，要么全部执行成功要么全部执行失败。</p>
-</li>
-<li><p>可见性<br>可见性是指当一个线程修改了共享变量后，其他线程能够立即看见这个修改。</p>
-</li>
-<li><p>有序性<br>有序性是指程序指令按照预期的顺序执行而非乱序执行，乱序又分为编译器乱序和CPU执行乱序。</p>
-</li>
-</ul>
-<h2 id="系统架构"><a href="#系统架构" class="headerlink" title="系统架构"></a>系统架构</h2><p>首先展示一幅手绘图，概略描述单核和多核时的系统架构：</p>
-<p><img src="/2017-08-12/architecture.png" alt="architecture"></p>
-<h3 id="Register"><a href="#Register" class="headerlink" title="Register"></a>Register</h3><p>寄存器。CPU指令执行，寄存器存放指令和数据，线程切换会进行寄存器保存和恢复操作。对线程而言，寄存器可以认为是私有的，即线程“工作内存”。多线程下，指令并发执行，操作各自工作内存，产生了原子性问题。</p>
-<h3 id="Cache"><a href="#Cache" class="headerlink" title="Cache"></a>Cache</h3><p>CPU缓存。CPU缓存提升了数据加载速度的同时，也带来了缓存一致性问题，该问题通过MESI协议来解决。但MESI协议下，一个CPU可能需要等待另一个CPU响应后才能继续执行，导致了阻塞，影响性能。所以增加了StoreBuffer和InvalidateQueue，也就是需要store时先放到StoreBuffer里，然后继续执行下一条指令，等到其他CPU响应返回后再处理对应store；收到invalidate通知时也不立即处理，而是先放到InvalidateQueue，并立即给予对方响应，然后等到合适时机再一起处理。这种优化提升了CPU执行能力，但也使得MESI协议的操作无法立即得到处理，出现异步，产生了可见性和有序性问题。</p>
-<h3 id="Memory"><a href="#Memory" class="headerlink" title="Memory"></a>Memory</h3><p>内存。</p>
-<p>单核环境下，多线程并发存在原子性问题和编译器乱序问题，因为Cache使用同一份，不存在可见性和CPU乱序问题。</p>
-<p>多核环境下，多线程并发存在原子性、可见性和有序性问题。</p>
-<h2 id="内存屏障"><a href="#内存屏障" class="headerlink" title="内存屏障"></a>内存屏障</h2><p>针对上述情况，编译屏障可以解决编译乱序问题，内存屏障可以解决可见性和CPU乱序问题。</p>
-<p>编译屏障作用于编译期，阻止编译器因为优化等对代码进行重排序。</p>
-<p>内存屏障作用于指令执行期，又分为读屏障和写屏障。</p>
-<h3 id="读屏障"><a href="#读屏障" class="headerlink" title="读屏障"></a>读屏障</h3><p>针对InvalidateQueue，确保其被立即处理。</p>
-<h3 id="写屏障"><a href="#写屏障" class="headerlink" title="写屏障"></a>写屏障</h3><p>针对StoreBuffer，确保收到invalidate ack后数据写入缓存。</p>
-<p>在内存屏障实现上，一般在单核上，即为编译器屏障，在多核上，包括编译屏障和读写屏障。</p>
-<h2 id="Java-volatile"><a href="#Java-volatile" class="headerlink" title="Java volatile"></a>Java volatile</h2><p>Java volatile通过内存屏障，实现了可见性和有序性。</p>
-<h3 id="Java内存屏障"><a href="#Java内存屏障" class="headerlink" title="Java内存屏障"></a>Java内存屏障</h3><p>LoadLoad屏障：对于这样的指令序列load1; loadload; load2，load1一定在load2之前执行完，CPU不会对load1和load2进行重排序。</p>
-<p>LoadStore屏障：对于这样的指令序列load1; loadstore; store1，load1一定在store1之前执行完，CPU不会对load1和store1进行重排序。</p>
-<p>StoreStore屏障：对于这样的指令序列store1; storestore; store2，store1一定在store2之前执行完，store1的写入操作对其他CPU可见，CPU不会对store1和store2进行重排序。</p>
-<p>StoreLoad屏障：对于这样的指令序列store1; storeload; load1，store1一定在load1之前执行完，store1的写入操作对其他CPU可见，CPU不会对store1和load1进行重排序。</p>
-<h3 id="顺序规则"><a href="#顺序规则" class="headerlink" title="顺序规则"></a>顺序规则</h3><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">(<span class="keyword">volatile</span>)Load      (<span class="keyword">volatile</span>)Store</span><br><span class="line">          |                   |</span><br><span class="line">          |                   |</span><br><span class="line">       LoadStore          StoreStore</span><br><span class="line">          |                   |                       <span class="keyword">volatile</span> Load</span><br><span class="line">          |___________________|_____StoreLoad_________________________</span><br><span class="line">             <span class="keyword">volatile</span> Store                       |                   |</span><br><span class="line">                                                  |                   |</span><br><span class="line">                                               LoadLoad            LoadStore</span><br><span class="line">                                                  |                   |</span><br><span class="line">                                                  |                   |</span><br><span class="line">                                        (<span class="keyword">volatile</span>)Load      (<span class="keyword">volatile</span>)Store</span><br></pre></td></tr></table></figure>
-
-<p>Store蕴含写语义，Load蕴含读语义，写与读期望构建一种 happens-before 关系，即一边写，一边读，读到了写的结果，就表示写对读可见了，且写与读之间有了先后关系。同时如果写之前的先后关系，读之后的有先后关系，那么它们之间也就有了先后关系，这就是 happens-before。</p>
-<p>内存屏障确定了一种 happens-before 关系。</p>
-<p>类似的写&#x2F;读语义，还有Release&#x2F;Acquire，Unlock&#x2F;Lock。</p>
-
-      
-    </div>
-
-    
-    
-    
-
-    <footer class="post-footer">
-        <div class="post-eof"></div>
-      
-    </footer>
-  </article>
-</div>
-
-
-
-
-    
-
-
-<div class="post-block">
-  
-  
-
-  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="">
-    <link itemprop="mainEntityOfPage" href="https://qilu.me/2017/02/20/2017-02-20/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Kaleo Feng">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="樂只君子">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
-      <meta itemprop="name" content="undefined | 樂只君子">
-      <meta itemprop="description" content="">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          <a href="/2017/02/20/2017-02-20/" class="post-title-link" itemprop="url">深度剖析Select和Epoll的工作原理</a>
-        </h2>
-
-        <div class="post-meta-container">
-          <div class="post-meta">
-    <span class="post-meta-item">
-      <span class="post-meta-item-icon">
-        <i class="far fa-calendar"></i>
-      </span>
-      <span class="post-meta-item-text">发表于</span>
-
-      <time title="创建时间：2017-02-20 22:00:00" itemprop="dateCreated datePublished" datetime="2017-02-20T22:00:00+08:00">2017-02-20</time>
-    </span>
-    <span class="post-meta-item">
-      <span class="post-meta-item-icon">
-        <i class="far fa-folder"></i>
-      </span>
-      <span class="post-meta-item-text">分类于</span>
-        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-          <a href="/categories/Lore/" itemprop="url" rel="index"><span itemprop="name">Lore</span></a>
-        </span>
-    </span>
-
-  
-</div>
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-          <p>为避免陷入代码和细节的汪洋大海中，本文尽量只做文字描述，并忽略一些细枝末节，目的是对整体有个宏观上的把握。</p>
-<h2 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h2><p><strong>FD</strong>，文件描述符。Linux下，所有的操作都是对文件进行操作，这些操作是利用文件描述符来实现的。</p>
-<p>每个FD，都有一组operations，比如 <code>read</code>（读）、<code>write</code>（写）、<code>poll</code>（轮询）等。</p>
-<p>其 <code>poll</code> 操作有两个作用：</p>
-<ul>
-<li><p>返回fd状态，比如可读、可写等</p>
-</li>
-<li><p>执行作为参数传入的 <code>proc</code> 处理函数</p>
-</li>
-</ul>
-<p>每个FD，还有一个等待队列，保存了数据（比如等待的进程）和 <code>callback</code> 回调函数。</p>
-<p>Socket也是fd，也有对应的 <code>poll</code> 操作和等待队列。</p>
-<p>以收数据为例。网卡有数据包到来时，会通过DMA将数据包写到指定内存地址，然后发硬件中断信号通知CPU。CPU执行中断程序，中断程序会调用网卡驱动的相应函数，先禁用网卡硬中断，再触发软中断。</p>
-<p>软中断处理函数调用驱动里的相应函数处理数据包，转成内核网络模块可识别的skb格式，之后将数据包交给网络协议栈处理。所有数据包处理完成后，开启网卡硬中断。</p>
-<p>网络协议栈自底向上，依次进行网络层IP层校验、IP分片与重组、路由检查与转发，传输层校验与处理，根据IP和端口找到对应的socket，将数据包放入socket接收队列。通知socket可读状态，执行 <code>wakeup</code>, <code>wakeup</code> 会调用socket fd上的等待队列中的 <code>callback</code> 回调函数。</p>
-<h2 id="正文"><a href="#正文" class="headerlink" title="正文"></a>正文</h2><p>基于以上，Select和Epoll实现了各自的功能。</p>
-<h3 id="Select"><a href="#Select" class="headerlink" title="Select"></a>Select</h3><p>Select相关重要函数：</p>
-<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">int</span> <span class="title">select</span><span class="params">(<span class="type">int</span> nfds, fd_set* readfds, fd_set* writefds, fd_set* exceptfds, <span class="keyword">struct</span> timeval* timeout)</span></span></span><br></pre></td></tr></table></figure>
-
-<p>Select最终会陷入内核，执行系统调用 <code>select</code>，3个fds从用户空间复制到内核空间。</p>
-<p>系统调用 <code>select</code> 中，会遍历fds，调用fd上的 <code>poll</code> 函数，其会调用传入的 <code>proc</code>。<code>proc</code> 会将 <code>select</code> 所在进程 <strong>current</strong> 和回调函数 <code>callback</code> 保存到socket fd的等待队列。如果某些fd已经有关注的可读&#x2F;写等状态，<code>poll</code> 返回这些状态，进而 <code>select</code> 可直接返回。否则，<code>select</code> 所在进程挂起。</p>
-<p>当socket读写状态改变时，<code>wakeup</code> 调用 <code>callback</code>。回调函数 <code>callback</code> 会调用默认唤醒函数唤醒socket fd等待队列上保存的进程，即上面挂起的 <code>select</code> 所在进程。</p>
-<p><code>select</code> 当前进程继续执行。再次遍历fds，调用socket fd的 <code>poll</code> 函数，这次传入的 <code>proc</code> 为空，所以不会再次加入等待队列。可读写的socket会返回其状态，select将其加入3个result fds。移除之前加入的所有socket fd等待队列条目。3个result fds从内核空间复制到用户空间。</p>
-<p><code>select</code> 系统调用执行完成，返回用户空间。</p>
-<p>观察上述过程，姑且不说 <code>select</code> 的socket fd数量限制问题，有3个方面影响了其性能：</p>
-<ul>
-<li><p>每次 <code>select</code>，都要重新设置socket列表到fds。</p>
-</li>
-<li><p>每次 <code>select</code>，都要将fds从用户空间复制到内核空间，再从内核空间复制到用户空间。</p>
-</li>
-<li><p>每次 <code>select</code>，都要遍历fds，加入socket fd等待队列1次，移出socket fd等待队列1次。</p>
-</li>
-</ul>
-<h3 id="Epoll"><a href="#Epoll" class="headerlink" title="Epoll"></a>Epoll</h3><p>有句名言：“计算机科学领域的任何问题都可以通过增加一个间接的中间层来解决”。</p>
-<p>面对Select的各种问题，出现了Epoll。Epoll可以认为是一个中间层，它的中间层体现在，应用进程不再与socket fd有强关系，而是通过Epoll来管理使用。</p>
-<p>Epoll相关重要函数：</p>
-<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">int</span> <span class="title">eventpoll_init</span><span class="params">(<span class="type">void</span>)</span></span></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">epoll_create</span><span class="params">(<span class="type">int</span> size)</span></span></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">epoll_ctl</span><span class="params">(<span class="type">int</span> epfd, <span class="type">int</span> op, <span class="type">int</span> fd, <span class="keyword">struct</span> epoll_event* event)</span></span></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">epoll_wait</span><span class="params">(<span class="type">int</span> epfd, <span class="keyword">struct</span> epoll_event* events, <span class="type">int</span> maxevents, <span class="type">int</span> timeout)</span></span></span><br></pre></td></tr></table></figure>
-
-<p>第一个函数 <code>eventpoll_init</code> 在系统初始化时由系统调用，目的是注册epoll文件系统，这里我们不关心。</p>
-<p>很直观的，上面select只有1个，这里有了3个。<code>epoll_create</code> 只会调用1次，<code>epoll_ctl</code> 每个socket fd调用1次，<code>epoll_wait</code> 类似 <code>select</code>，频繁调用。3个函数最终都会陷入内核，执行系统调用。</p>
-<p>Epoll 在<code>epoll_create</code>时， 返回一个epoll fd，没错，epoll对象也是个fd，是epoll文件系统的一个file节点，这就意味着它也有一组operations和等待队列。</p>
-<p>Epoll使用红黑树来管理socket fd，<code>epoll_ctl</code> 时会将socket fd加入红黑树，这样保证了socket fd只会被加入一次，也只有一次从用户空间传递到内核空间，对比 <code>select</code> 的每次都加入、复制。</p>
-<p>Epoll在 <code>epoll_ctl</code> 时，调用socket fd上的 <code>poll</code> 函数，其会调用传入的 <code>proc</code>。<code>proc</code>会将回调函数 <code>callback</code> 保存到socket fd的等待队列，对比 <code>select</code> 的每次都加入移除。如果某些socket fd已经有关注的可读&#x2F;写等状态，<code>poll</code> 返回这些状态，将这些socket fd对应的eepitem加入到 <strong>epoll就绪列表</strong>。</p>
-<p>Epoll在 <code>epoll_wait</code> 时，会将 <code>epoll_wait</code> 所在进程 <strong>current</strong> 保存到epoll fd上的等待队列，对比 <code>select</code> 的加入每个socket fd等待队列。检查epoll就绪列表，若不空，<code>epoll_wait</code> 可直接返回。否则，<code>epoll_wait</code> 所在进程挂起。</p>
-<p>当socket读写状态改变时，<code>wakeup</code> 调用 <code>callback</code>。回调函数 <code>callback</code> 会将socket fd对应的epitem添加到epoll就绪列表，并唤醒epoll fd等待队列上的进程，即上面挂起的 <code>epoll_wait</code> 所在进程。</p>
-<p><code>epoll_wait</code> 当前进程继续执行。移除之前加入的epoll fd等待队列条目，对比 <code>select</code> 的移除之前加入的每个socket fd等待队列条目。遍历epoll就绪列表，调用socket fd的 <code>poll</code> 函数，这次传入的 <code>proc</code> 为空，所以不会再次加入等待队列，对比 <code>select</code> 的调用所有socket fd的 <code>poll</code> 函数。可读写的socket会返回其状态，将其从内核空间复制到用户空间。</p>
-<p>此处有一个点，即ET（边缘触发）和LT（水平触发）的区别。过程中，socket fd对应的epitem会从epoll就绪列表移除，LT模式下，最后会将其再加入到epoll就绪列表，而ET模式不会。</p>
-<p><code>epoll_wait</code> 系统调用执行完成，返回用户空间。</p>
-<h2 id="结语"><a href="#结语" class="headerlink" title="结语"></a>结语</h2><p>对比Select和Epoll，Select每次都跟socket fd强交互，而Epoll只在第一次强交互，后续socket fd只是通过 <code>callback</code> 回调函数通知epoll，其余工作都由Epoll这个中间层接管了，所以它就可以采取各种手段，提高性能。</p>
-
-      
-    </div>
-
-    
-    
-    
-
-    <footer class="post-footer">
-        <div class="post-eof"></div>
-      
-    </footer>
-  </article>
-</div>
-
-
-
-
-    
-
-
-<div class="post-block">
-  
-  
-
-  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="">
-    <link itemprop="mainEntityOfPage" href="https://qilu.me/2016/04/15/2016-04-15/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Kaleo Feng">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="樂只君子">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
-      <meta itemprop="name" content="undefined | 樂只君子">
-      <meta itemprop="description" content="">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          <a href="/2016/04/15/2016-04-15/" class="post-title-link" itemprop="url">C++11 异步任务实现（类Java ExecutorService）</a>
-        </h2>
-
-        <div class="post-meta-container">
-          <div class="post-meta">
-    <span class="post-meta-item">
-      <span class="post-meta-item-icon">
-        <i class="far fa-calendar"></i>
-      </span>
-      <span class="post-meta-item-text">发表于</span>
-
-      <time title="创建时间：2016-04-15 20:00:00" itemprop="dateCreated datePublished" datetime="2016-04-15T20:00:00+08:00">2016-04-15</time>
-    </span>
-    <span class="post-meta-item">
-      <span class="post-meta-item-icon">
-        <i class="far fa-folder"></i>
-      </span>
-      <span class="post-meta-item-text">分类于</span>
-        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-          <a href="/categories/Tech/" itemprop="url" rel="index"><span itemprop="name">Tech</span></a>
-        </span>
-    </span>
-
-  
-</div>
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-          <p>使用Java时，并发库提供很多有用的工具，比如ExecutorService，方便执行异步任务。C++11通过使用线程和lambda，可以很容易实现类似的功能。尽在代码中。</p>
-<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">AsyncService</span> &#123;</span><br><span class="line">    <span class="built_in">MZ_DISALLOW_COPY_AND_ASSIGN</span>(AsyncService)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">using</span> Async_t = std::function&lt;<span class="built_in">void</span>()&gt;;</span><br><span class="line">    <span class="keyword">using</span> AsyncQueue_t = std::queue&lt;Async_t&gt;;</span><br><span class="line"></span><br><span class="line"><span class="keyword">private</span>:</span><br><span class="line">    AsyncThread** m_asyncThreads = <span class="literal">nullptr</span>;</span><br><span class="line">    <span class="type">int</span> m_threadSize = <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line">    std::mutex m_asyncMutex;</span><br><span class="line">    std::condition_variable m_asyncCond;</span><br><span class="line">    AsyncQueue_t m_asyncQueue;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="built_in">AsyncService</span>();</span><br><span class="line"></span><br><span class="line">    ~<span class="built_in">AsyncService</span>();</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="type">bool</span> <span class="title">Initialize</span><span class="params">(<span class="type">int</span> threadSize)</span></span>;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="type">void</span> <span class="title">Finalize</span><span class="params">()</span></span>;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="type">void</span> <span class="title">Push</span><span class="params">(Async_t async)</span></span>;</span><br><span class="line"></span><br><span class="line">    <span class="function">Async_t <span class="title">Pop</span><span class="params">()</span></span>;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
-
-<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br></pre></td><td class="code"><pre><span class="line">AsyncService::<span class="built_in">AsyncService</span>() &#123;&#125;</span><br><span class="line"></span><br><span class="line">AsyncService::~<span class="built_in">AsyncService</span>() &#123;&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">bool</span> <span class="title">AsyncService::Initialize</span><span class="params">(<span class="type">int</span> threadSize)</span> </span>&#123;</span><br><span class="line">    m_threadSize = threadSize;</span><br><span class="line">    m_asyncThreads = <span class="keyword">new</span> AsyncThread*[m_threadSize];</span><br><span class="line">    <span class="keyword">for</span> (<span class="keyword">auto</span> index = <span class="number">0</span>; index &lt; m_threadSize; ++index) &#123;</span><br><span class="line">        m_asyncThreads[index] = <span class="keyword">new</span> <span class="built_in">AsyncThread</span>(*<span class="keyword">this</span>);</span><br><span class="line">        m_asyncThreads[index]-&gt;<span class="built_in">Initialize</span>();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">AsyncService::Finalize</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="keyword">for</span> (<span class="keyword">auto</span> index = <span class="number">0</span>; index &lt; m_threadSize; ++index) &#123;</span><br><span class="line">        m_asyncThreads[index]-&gt;<span class="built_in">Finalize</span>();</span><br><span class="line">        <span class="built_in">SafeDelete</span>(m_asyncThreads[index]);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="built_in">SafeDeleteArray</span>(m_asyncThreads);</span><br><span class="line">    m_threadSize = <span class="number">0</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">AsyncService::Push</span><span class="params">(Async_t async)</span> </span>&#123;</span><br><span class="line">    <span class="function">std::unique_lock&lt;std::mutex&gt; <span class="title">lock</span><span class="params">(m_asyncMutex)</span></span>;</span><br><span class="line">    m_asyncQueue.<span class="built_in">push</span>(async);</span><br><span class="line">    m_asyncCond.<span class="built_in">notify_all</span>();</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function">AsyncService::Async_t <span class="title">AsyncService::Pop</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="function">std::unique_lock&lt;std::mutex&gt; <span class="title">lock</span><span class="params">(m_asyncMutex)</span></span>;</span><br><span class="line">    m_asyncCond.<span class="built_in">wait</span>(lock, [<span class="keyword">this</span>] &#123;</span><br><span class="line">        <span class="keyword">return</span> !m_asyncQueue.<span class="built_in">empty</span>();</span><br><span class="line">    &#125;);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">auto</span> async = m_asyncQueue.<span class="built_in">front</span>();</span><br><span class="line">    m_asyncQueue.<span class="built_in">pop</span>();</span><br><span class="line">    <span class="keyword">return</span> async;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>使用方式很简单，调用Push接口即可。</p>
-<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">asyncService.<span class="built_in">Push</span>([&amp;] &#123;</span><br><span class="line">    <span class="comment">// Do something</span></span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
-
-<p><code>AsyncService</code> 提供异步任务功能接口，使用 <code>mutex</code> 和 <code>condition_variable</code> 实现多线程任务队列同步。线程依次从队列中取出任务并执行，为方便使用，任务使用lambda函数。</p>
+<p>问题就出在第二种情况下。找不到Xyz.so，当然其中的符号就是未定义了，此时报错 <code>undefined reference</code>。</p>
+<p>但前面已经分析过，链接过程中指定了 <code>--unresolved-symbols=ignore-in-shared-libs</code>，会忽略未定义符号，不应该报错才对。</p>
+<p>经过对比测试，在使用 <code>LLVM ld.lld</code> 链接器时才会出现该问题，使用 <code>GUN ld</code> 链接器没有问题。<code>LLVM ld.lld</code> 链接器中这个参数没有效果（至少是当前使用的这个版本 <code>LLD 10.0.1 (compatible with GNU linkers)</code>）。</p>
+<h2 id="解决"><a href="#解决" class="headerlink" title="解决"></a>解决</h2><h3 id="方案1"><a href="#方案1" class="headerlink" title="方案1"></a>方案1</h3><p>换一个 <code>LLVM ld.lld</code> 链接器支持的参数。</p>
+<p>修改文件 <code>LinuxToolChain.cs</code> 中的代码，将忽略未定义符号链接参数 <code>--unresolved-symbols=ignore-in-shared-libs</code> 替换为 <code>--allow-shlib-undefined</code>。</p>
+<h3 id="方案2"><a href="#方案2" class="headerlink" title="方案2"></a>方案2</h3><p>让 <code>UE4Editor 链接Action</code> 依赖于 <code>libUE4Editor-Engine.so 重链接Action</code>。</p>
+<p>文件 <code>Actions.cs</code> 中的 <code>class Action</code> 中添加一个字段，保存其关联的Action，即用来在 链接Action 中保存其对应的 重链接Action。</p>
+<figure class="highlight csharp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"><span class="doctag">///</span> <span class="doctag">&lt;summary&gt;</span></span></span><br><span class="line"><span class="comment"><span class="doctag">///</span> The actions that this action related(e.g. relink)</span></span><br><span class="line"><span class="comment"><span class="doctag">///</span> <span class="doctag">&lt;/summary&gt;</span></span></span><br><span class="line"><span class="keyword">public</span> List&lt;Action&gt; RelatedActions = <span class="keyword">new</span> List&lt;Action&gt;();</span><br></pre></td></tr></table></figure>
+
+<p>文件 <code>LinuxToolChain.cs</code> 中 添加代码。</p>
+<figure class="highlight csharp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">RelinkAction.bProducesImportLibrary = LinkAction.bProducesImportLibrary;</span><br></pre></td></tr></table></figure>
+
+<p><code>bProducesImportLibrary</code> 这个字段后面会用来区分构建的是可执行程序还是动态库，因为只有可执行程序链接时，才会出现问<br>题。这里让 重链接Action 跟 第一次链接Action 保持一致。</p>
+<figure class="highlight csharp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">LinkAction.RelatedActions.Add(RelinkAction);</span><br></pre></td></tr></table></figure>
+
+<p>记录下 第一次链接Action 对应的 重链接Action。</p>
+<p>文件 <code>ActionsGraph.cs</code> 的 <code>ActionGraph::Link</code> 中添加代码。</p>
+<figure class="highlight csharp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> (!Action.bProducesImportLibrary)</span><br><span class="line">&#123;</span><br><span class="line">    <span class="keyword">foreach</span> (Action RelatedAction <span class="keyword">in</span> PrerequisiteAction.RelatedActions)</span><br><span class="line">    &#123;</span><br><span class="line">        Action.PrerequisiteActions.Add(RelatedAction);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>把 重链接Action 添加到依赖于 第一次链接Action 的可执行文件链接Action的依赖列表，这样可执行文件一定会在 重链接Action 执行完成即完整so生成后，才会开始链接。</p>
+<p>修改后观察，链接成功，问题已解决。</p>
+<h2 id="扩展"><a href="#扩展" class="headerlink" title="扩展"></a>扩展</h2><p>假设 <code>c.exe</code> 依赖于 <code>libb.so</code>，<code>libb.so</code> 依赖于 <code>liba.so</code>。</p>
+<h3 id="不指定依赖库"><a href="#不指定依赖库" class="headerlink" title="不指定依赖库"></a>不指定依赖库</h3><p>构建 <code>libb.so</code> 时不指定依赖库</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">clang -shared -fPIC -o libb.so b.c</span><br></pre></td></tr></table></figure>
+
+<p><code>ldd libb.so</code> 结果</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">linux-vdso.so.1 (0x00007fff96b3a000)</span><br><span class="line"><span class="meta prompt_">/$</span><span class="language-bash">LIB/libonion.so =&gt; /lib64/libonion.so (0x00007f52dc3bc000)</span></span><br><span class="line">libc.so.6 =&gt; /lib64/libc.so.6 (0x00007f52dc1ec000)</span><br><span class="line">libdl.so.2 =&gt; /lib64/libdl.so.2 (0x00007f52dc1e5000)</span><br><span class="line">/lib64/ld-linux-x86-64.so.2 (0x00007f52dc3cb000)</span><br></pre></td></tr></table></figure>
+
+<p>使用 <code>LLVM ld</code></p>
+<hr>
+<p>构建 <code>c.exe</code> 时不指定依赖库，不指定链接参数</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">clang -fuse-ld=lld -o c.exe c.c -Wl,--start-group -Wl,--end-group</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">ld.lld: error: undefined symbol: cal</span><br><span class="line"><span class="meta prompt_">&gt;</span><span class="language-bash">&gt;&gt; referenced by c.c</span></span><br><span class="line"><span class="meta prompt_">&gt;</span><span class="language-bash">&gt;&gt;               /tmp/c-e8630d.o:(main)</span></span><br><span class="line">clang: error: linker command failed with exit code 1 (use -v to see invocation)</span><br></pre></td></tr></table></figure>
+
+<p>构建 <code>c.exe</code> 时指定依赖库，不指定链接参数</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">clang -fuse-ld=lld -o c.exe c.c -L. -Wl,--start-group -lb -Wl,--end-group</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">ld.lld: error: ./libb.so: undefined reference to sum</span><br><span class="line">clang: error: linker command failed with exit code 1 (use -v to see invocation)</span><br></pre></td></tr></table></figure>
+
+<p>构建 <code>c.exe</code> 时指定依赖库，指定链接参数 <code>--unresolved-symbols=ignore-in-shared-libs</code></p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">clang -fuse-ld=lld -o c.exe c.c -L. -Wl,--start-group -lb -Wl,--unresolved-symbols=ignore-in-shared-libs -Wl,--end-group</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">ld.lld: error: ./libb.so: undefined reference to sum</span><br><span class="line">clang: error: linker command failed with exit code 1 (use -v to see invocation)</span><br></pre></td></tr></table></figure>
+
+<p>构建 <code>c.exe</code> 时指定依赖库，指定链接参数 <code>--allow-shlib-undefined</code></p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">clang -fuse-ld=lld -o c.exe c.c -L. -Wl,--start-group -lb -Wl,--allow-shlib-undefined -Wl,--end-group</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">构建成功</span><br></pre></td></tr></table></figure>
+
+<p>使用 <code>GNU ld</code></p>
+<hr>
+<p>构建 <code>c.exe</code> 时不指定依赖库，不指定链接参数，使用 <code>GNU ld</code></p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">clang -o c.exe c.c -Wl,--start-group -Wl,--end-group</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">x86_64-unknown-linux-gnu-ld: /tmp/c-d47523.o: in function `main&#x27;:</span><br><span class="line">c.c:(.text+0x1a): undefined reference to `cal&#x27;</span><br><span class="line">clang: error: linker command failed with exit code 1 (use -v to see invocation)</span><br></pre></td></tr></table></figure>
+
+<p>构建 <code>c.exe</code> 时指定依赖库，不指定链接参数，使用 <code>GNU ld</code></p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">clang -o c.exe c.c -L. -Wl,--start-group -lb -Wl,--end-group</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">x86_64-unknown-linux-gnu-ld: ./libb.so: undefined reference to `sum&#x27;</span><br><span class="line">clang: error: linker command failed with exit code 1 (use -v to see invocation)</span><br></pre></td></tr></table></figure>
+
+<p>构建 <code>c.exe</code> 时指定依赖库，指定链接参数 <code>--unresolved-symbols=ignore-in-shared-libs</code>，使用 <code>GNU ld</code></p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">clang -o c.exe c.c -L. -Wl,--start-group -lb -Wl,--unresolved-symbols=ignore-in-shared-libs -Wl,--end-group</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">构建成功</span><br></pre></td></tr></table></figure>
+
+<p>构建 <code>c.exe</code> 时指定依赖库，指定链接参数 <code>--allow-shlib-undefined</code>，使用 <code>GNU ld</code></p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">clang -o c.exe c.c -L. -Wl,--start-group -lb -Wl,--allow-shlib-undefined -Wl,--end-group</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">构建成功</span><br></pre></td></tr></table></figure>
+
+<h3 id="指定依赖库"><a href="#指定依赖库" class="headerlink" title="指定依赖库"></a>指定依赖库</h3><p>构建 <code>libb.so</code> 时指定依赖库</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">clang -shared -fPIC -o libb.so b.c -L. -la</span><br></pre></td></tr></table></figure>
+
+<p><code>ldd libb.so</code> 结果</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">linux-vdso.so.1 (0x00007ffee9716000)</span><br><span class="line"><span class="meta prompt_">/$</span><span class="language-bash">LIB/libonion.so =&gt; /lib64/libonion.so (0x00007f6f815bb000)</span></span><br><span class="line">liba.so =&gt; not found</span><br><span class="line">libc.so.6 =&gt; /lib64/libc.so.6 (0x00007f6f813eb000)</span><br><span class="line">libdl.so.2 =&gt; /lib64/libdl.so.2 (0x00007f6f813e4000)</span><br><span class="line">/lib64/ld-linux-x86-64.so.2 (0x00007f6f815ca000)</span><br></pre></td></tr></table></figure>
+
+<p>使用 <code>LLVM ld</code></p>
+<hr>
+<p>构建 <code>c.exe</code> 时不指定依赖库，不指定链接参数</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">clang -fuse-ld=lld -o c.exe c.c -Wl,--start-group -Wl,--end-group</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">ld.lld: error: undefined symbol: cal</span><br><span class="line"><span class="meta prompt_">&gt;</span><span class="language-bash">&gt;&gt; referenced by c.c</span></span><br><span class="line"><span class="meta prompt_">&gt;</span><span class="language-bash">&gt;&gt;               /tmp/c-cb2dc3.o:(main)</span></span><br><span class="line">clang: error: linker command failed with exit code 1 (use -v to see invocation)</span><br></pre></td></tr></table></figure>
+
+<p>构建 <code>c.exe</code> 时指定依赖库，不指定链接参数</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">clang -fuse-ld=lld -o c.exe c.c -L. -Wl,--start-group -lb -Wl,--end-group</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">构建成功</span><br></pre></td></tr></table></figure>
+
+<p>构建 <code>c.exe</code> 时指定依赖库，指定链接参数 <code>--unresolved-symbols=ignore-in-shared-libs</code></p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">clang -fuse-ld=lld -o c.exe c.c -L. -Wl,--start-group -lb -Wl,--unresolved-symbols=ignore-in-shared-libs -Wl,--end-group</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">构建成功</span><br></pre></td></tr></table></figure>
+
+<p>构建 <code>c.exe</code> 时指定依赖库，指定链接参数 <code>--allow-shlib-undefined</code></p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">clang -fuse-ld=lld -o c.exe c.c -L. -Wl,--start-group -lb -Wl,--allow-shlib-undefined -Wl,--end-group</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">构建成功</span><br></pre></td></tr></table></figure>
+
+<p>使用 <code>GNU ld</code></p>
+<hr>
+<p>构建 <code>c.exe</code> 时不指定依赖库，不指定链接参数，使用 <code>GNU ld</code></p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">clang -o c.exe c.c -Wl,--start-group -Wl,--end-group</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">x86_64-unknown-linux-gnu-ld: /tmp/c-d74279.o: in function `main&#x27;:</span><br><span class="line">c.c:(.text+0x1a): undefined reference to `cal&#x27;</span><br><span class="line">clang: error: linker command failed with exit code 1 (use -v to see invocation)</span><br></pre></td></tr></table></figure>
+
+<p>构建 <code>c.exe</code> 时指定依赖库，不指定链接参数，使用 <code>GNU ld</code></p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">clang -o c.exe c.c -L. -Wl,--start-group -lb -Wl,--end-group</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">bin/x86_64-unknown-linux-gnu-ld: warning: liba.so, needed by ./libb.so, not found (try using -rpath or -rpath-link)</span><br><span class="line">x86_64-unknown-linux-gnu-ld: ./libb.so: undefined reference to `sum&#x27;</span><br><span class="line">clang: error: linker command failed with exit code 1 (use -v to see invocation)</span><br></pre></td></tr></table></figure>
+
+<p>构建 <code>c.exe</code> 时指定依赖库，指定链接参数 <code>--unresolved-symbols=ignore-in-shared-libs</code>，使用 <code>GNU ld</code></p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">clang -o c.exe c.c -L. -Wl,--start-group -lb -Wl,--unresolved-symbols=ignore-in-shared-libs -Wl,--end-group</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">构建成功</span><br></pre></td></tr></table></figure>
+
+<p>构建 <code>c.exe</code> 时指定依赖库，指定链接参数 <code>--allow-shlib-undefined</code>，使用 <code>GNU ld</code></p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">clang -o c.exe c.c -L. -Wl,--start-group -lb -Wl,--allow-shlib-undefined -Wl,--end-group</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">构建成功</span><br></pre></td></tr></table></figure>
+
+<h2 id="参考信息"><a href="#参考信息" class="headerlink" title="参考信息"></a>参考信息</h2><h3 id="GNU-ld"><a href="#GNU-ld" class="headerlink" title="GNU ld"></a>GNU ld</h3><p><a target="_blank" rel="noopener" href="https://linux.die.net/man/1/ld">Manual</a></p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">--unresolved-symbols=method</span><br><span class="line">Determine how to handle unresolved symbols. There are four possible values for method:</span><br><span class="line">ignore-all</span><br><span class="line">  Do not report any unresolved symbols.</span><br><span class="line">report-all</span><br><span class="line">  Report all unresolved symbols. This is the default.</span><br><span class="line">ignore-in-object-files</span><br><span class="line">  Report unresolved symbols that are contained in shared libraries, but ignore them if they come from regular object files.</span><br><span class="line">ignore-in-shared-libs</span><br><span class="line">  Report unresolved symbols that come from regular object files, but ignore them if they come from shared libraries. This can be useful when creating a dynamic binary and it is known that all the shared libraries that it should be referencing are included on the linker&#x27;s command line.</span><br><span class="line">The behaviour for shared libraries on their own can also be controlled by the --[no-]allow-shlib-undefined option.</span><br><span class="line">Normally the linker will generate an error message for each reported unresolved symbol but the option --warn-unresolved-symbols can change this to a warning.</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">--allow-shlib-undefined</span><br><span class="line">--no-allow-shlib-undefined</span><br><span class="line">Allows or disallows undefined symbols in shared libraries. This switch is similar to --no-undefined except that it determines the behaviour when the undefined symbols are in a shared library rather than a regular object file. It does not affect how undefined symbols in regular object files are handled.</span><br><span class="line">The default behaviour is to report errors for any undefined symbols referenced in shared libraries if the linker is being used to create an executable, but to allow them if the linker is being used to create a shared library.</span><br><span class="line"></span><br><span class="line">The reasons for allowing undefined symbol references in shared libraries specified at link time are that:</span><br><span class="line"></span><br><span class="line">â€¢ A shared library specified at link time may not be the same as the one that is available at load time, so the symbol might actually be resolvable at load time.</span><br><span class="line">â€¢ There are some operating systems, eg BeOS and HPPA , where undefined symbols in shared libraries are normal.</span><br><span class="line"></span><br><span class="line">The BeOS kernel for example patches shared libraries at load time to select whichever function is most appropriate for the current architecture. This is used, for example, to dynamically select an appropriate memset function.</span><br></pre></td></tr></table></figure>
+
+<h3 id="LLVM-ld-lld"><a href="#LLVM-ld-lld" class="headerlink" title="LLVM ld.lld"></a>LLVM ld.lld</h3><p><a target="_blank" rel="noopener" href="https://nxmnpg.lemoda.net/1/ld.lld">Manual</a></p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">--allow-shlib-undefined</span><br><span class="line">Allow unresolved references in shared libraries. This option is enabled by default when linking a shared library.</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">--unresolved-symbols -= value</span><br><span class="line">Determine how to handle unresolved symbols.</span><br></pre></td></tr></table></figure>
 
       
     </div>
@@ -1404,7 +417,7 @@
 
 
   <nav class="pagination">
-    <a class="extend prev" rel="prev" title="上一页" aria-label="上一页" href="/"><i class="fa fa-angle-left"></i></a><a class="page-number" href="/">1</a><span class="page-number current">2</span><a class="page-number" href="/page/3/">3</a><span class="space">&hellip;</span><a class="page-number" href="/page/5/">5</a><a class="extend next" rel="next" title="下一页" aria-label="下一页" href="/page/3/"><i class="fa fa-angle-right"></i></a>
+    <a class="extend prev" rel="prev" title="上一页" aria-label="上一页" href="/"><i class="fa fa-angle-left"></i></a><a class="page-number" href="/">1</a><span class="page-number current">2</span><a class="page-number" href="/page/3/">3</a><span class="space">&hellip;</span><a class="page-number" href="/page/48/">48</a><a class="extend next" rel="next" title="下一页" aria-label="下一页" href="/page/3/"><i class="fa fa-angle-right"></i></a>
   </nav>
 
 </div>

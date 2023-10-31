@@ -26,14 +26,14 @@
 <meta property="og:site_name" content="樂只君子">
 <meta property="og:description" content="TCP&#x2F;IP协议族是我们平时接触最多的协议，从分层模型上，它由四个层次组成，从上到下依次是应用层、传输层、网络层、链路层。各层协议构成协议栈（Protocol Stack），形象地反映了一个网络中数据传输的过程：由上层协议到底层协议，再由底层协议到上层协议。 数据由上到下，会经过层层封装。下图（来自网络）是一个典型过程。 应用层：发送一份数据时，为了使对方收到这份数据后，知道这份数据的大">
 <meta property="og:locale" content="zh_CN">
-<meta property="og:image" content="https://qilu.me/2014-05-27/protocal_statck.jpg">
+<meta property="og:image" content="https://qilu.me/2014/05/27/2014-05-27/protocal_statck.jpg">
 <meta property="article:published_time" content="2014-05-27T15:00:00.000Z">
 <meta property="article:modified_time" content="2022-09-18T03:53:03.018Z">
 <meta property="article:author" content="Kaleo Feng">
 <meta property="article:tag" content="TCPIP">
 <meta property="article:tag" content="网络编程">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:image" content="https://qilu.me/2014-05-27/protocal_statck.jpg">
+<meta name="twitter:image" content="https://qilu.me/2014/05/27/2014-05-27/protocal_statck.jpg">
 
 
 <link rel="canonical" href="https://qilu.me/2014/05/27/2014-05-27/">
@@ -217,7 +217,7 @@
     
     
     <div class="post-body" itemprop="articleBody"><p>TCP&#x2F;IP协议族是我们平时接触最多的协议，从分层模型上，它由四个层次组成，从上到下依次是应用层、传输层、网络层、链路层。各层协议构成协议栈（Protocol Stack），形象地反映了一个网络中数据传输的过程：由上层协议到底层协议，再由底层协议到上层协议。</p>
-<p>数据由上到下，会经过层层封装。下图（来自网络）是一个典型过程。<br><img src="/2014-05-27/protocal_statck.jpg" alt="Image Title"></p>
+<p>数据由上到下，会经过层层封装。下图（来自网络）是一个典型过程。<br><img src="/2014/05/27/2014-05-27/protocal_statck.jpg" alt="Image Title"></p>
 <p>应用层：发送一份数据时，为了使对方收到这份数据后，知道这份数据的大小、类型或用途等，通常会添加包头。如果数据很大，为了防止下层协议对数据分片，有时也会人为地对数据进行分包，而包头也会包含分包信息。</p>
 <p>传输层：主要指TCP协议和UDP协议。应用层的数据到达该层，根据协议的不同，会添加不同的首部，通常包含源端口号、目的端口号及校验信息等。端口号用来识别应用程序，以确定数据是哪两个进程间的会话。</p>
 <p>网络层：主要指IP协议，有IPv4和IPv6两个版本，本系列只讨论IPv4。IP首部包含源IP地址，目的IP地址、数据长度及协议类型等。IP地址用来表明数据是哪两个主机间的会话，IP地址与传输层的端口构成一个四元组，可以唯一标识一个会话。协议类型来确定传输层所采用协议。</p>
