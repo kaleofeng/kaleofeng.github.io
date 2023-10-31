@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 6.3.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" integrity="sha256-CTSx/A06dm1B063156EVh15m6Y67pAjZZaQc89LLSrU=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"qilu.me","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.18.2","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":{"enable":false,"style":null},"fold":{"enable":false,"height":500},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"prism":false,"i18n":{"placeholder":"搜索...","empty":"没有找到任何搜索结果：${query}","hits_time":"找到 ${hits} 个搜索结果（用时 ${time} 毫秒）","hits":"找到 ${hits} 个搜索结果"}}</script><script src="/js/config.js"></script>
+
+    <meta name="description" content="函数返回类型推导（Return Type Deduction for Normal Functions）是C++14中新增的特性。 C++11允许lambda函数根据return语句的表达式类型推断返回类型。C++14为一般的函数也提供了这个能力。C++14还拓展了原有的规则，使得函数体并不是{ return expression; }形式的函数也可以使用返回类型推导。 为了启用返回类型推导，函数">
+<meta property="og:type" content="article">
+<meta property="og:title" content="C++14 函数返回类型推导的适用场景">
+<meta property="og:url" content="https://qilu.me/2014/11/09/2014-11-09/index.html">
+<meta property="og:site_name" content="樂只君子">
+<meta property="og:description" content="函数返回类型推导（Return Type Deduction for Normal Functions）是C++14中新增的特性。 C++11允许lambda函数根据return语句的表达式类型推断返回类型。C++14为一般的函数也提供了这个能力。C++14还拓展了原有的规则，使得函数体并不是{ return expression; }形式的函数也可以使用返回类型推导。 为了启用返回类型推导，函数">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2014-11-09T14:00:00.000Z">
+<meta property="article:modified_time" content="2022-09-18T03:53:03.025Z">
+<meta property="article:author" content="Kaleo Feng">
+<meta property="article:tag" content="Cpp">
+<meta property="article:tag" content="Metazion">
+<meta name="twitter:card" content="summary">
+
+
+<link rel="canonical" href="https://qilu.me/2014/11/09/2014-11-09/">
+
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh-CN","comments":true,"permalink":"https://qilu.me/2014/11/09/2014-11-09/","path":"2014/11/09/2014-11-09/","title":"C++14 函数返回类型推导的适用场景"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>C++14 函数返回类型推导的适用场景 | 樂只君子</title>
+  
+
+
+
+
+
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">樂只君子</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">起舞弄清影</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="搜索" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a></li>
+  </ul>
+</nav>
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-overview-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Kaleo Feng</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">48</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">4</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">99</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://qilu.me/2014/11/09/2014-11-09/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Kaleo Feng">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="樂只君子">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="C++14 函数返回类型推导的适用场景 | 樂只君子">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          C++14 函数返回类型推导的适用场景
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">发表于</span>
+
+      <time title="创建时间：2014-11-09 22:00:00" itemprop="dateCreated datePublished" datetime="2014-11-09T22:00:00+08:00">2014-11-09</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">分类于</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/Tech/" itemprop="url" rel="index"><span itemprop="name">Tech</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><p><strong>函数返回类型推导</strong>（Return Type Deduction for Normal Functions）是C++14中新增的特性。</p>
+<p>C++11允许lambda函数根据return语句的表达式类型推断返回类型。C++14为一般的函数也提供了这个能力。C++14还拓展了原有的规则，使得函数体并不是{ return expression; }形式的函数也可以使用返回类型推导。</p>
+<p>为了启用返回类型推导，函数声明必须将<strong>auto</strong>作为返回类型，但没有C++11的后置返回类型说明符：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">auto</span> <span class="title">DeduceReturnType</span><span class="params">()</span></span>; <span class="comment">// 返回类型由编译器推断</span></span><br></pre></td></tr></table></figure>
+
+<p>如果函数实现中含有多个return语句，这些表达式必须可以推断为相同的类型。</p>
+<p>使用返回类型推导的函数可以前向声明，但在定义之前不可以使用。它们的定义在使用它们的翻译单元（translation unit）之中必须是可用的。</p>
+<p>这样的函数中可以存在递归，但递归调用必须在函数定义中的至少一个return语句之后：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">auto</span> <span class="title">Correct</span><span class="params">(<span class="type">int</span> i)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (i == <span class="number">1</span>) &#123;</span><br><span class="line">         <span class="keyword">return</span> i;  <span class="comment">// 返回类型被推断为 int</span></span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="built_in">Correct</span>(i<span class="number">-1</span>)+i;  <span class="comment">// 正确，可以调用</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">auto</span> <span class="title">Wrong</span><span class="params">(<span class="type">int</span> i)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (i != <span class="number">1</span>) &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="built_in">Wrong</span>(i<span class="number">-1</span>)+i; <span class="comment">// 不能调用，之前没有return语句</span></span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> i; <span class="comment">// 返回类型被推断为 int</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>上面描述了这种特性的语法规则，那么适合用在什么地方呢？</p>
+<p>最近向<a target="_blank" rel="noopener" href="https://github.com/KaleoFeng/Metazion">Metazion</a>库里增加HashMap时，便遇到了这种需求。</p>
+<p>Metazion里的HashMap默认为1024个桶，每个桶的数据结构采用Map实现。下面是未使用该特性时的代码。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> KeyType</span><br><span class="line">, <span class="keyword">typename</span> ValueType</span><br><span class="line">, <span class="keyword">typename</span> CompareType = LessCompare&lt;KeyType&gt;</span><br><span class="line">, <span class="keyword">typename</span> HasherType = IntegerHasher&lt;KeyType&gt;</span><br><span class="line">, <span class="type">int</span> BUCKETSIZE = <span class="number">1024</span></span><br><span class="line">, <span class="keyword">typename</span> AllocatorFamily = HeapAllocator&lt;&gt;</span><br><span class="line">&gt;</span><br><span class="line"><span class="keyword">class</span> HashMap &#123;</span><br><span class="line">    <span class="built_in">DISALLOW_COPY_AND_ASSIGN</span>(HashMap)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">using</span> Key_t = KeyType;</span><br><span class="line">    <span class="keyword">using</span> Value_t = ValueType;</span><br><span class="line">    <span class="keyword">using</span> Compare_t = CompareType;</span><br><span class="line">    <span class="keyword">using</span> Hasher_t = HasherType;</span><br><span class="line">    <span class="keyword">using</span> Allocator_t = AllocatorFamily;</span><br><span class="line">    <span class="keyword">using</span> Bucket_t = Map&lt;Key_t, Value_t, Compare_t, Allocator_t&gt;;</span><br><span class="line">    <span class="keyword">using</span> BucketEntry_t = Pair&lt;Key_t, Value_t&gt;;</span><br><span class="line">    <span class="keyword">using</span> BucketIterator_t = <span class="keyword">typename</span> Bucket_t::Iterator_t;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">class</span> <span class="title class_">Iterator</span> &#123;</span><br><span class="line">        <span class="keyword">friend</span> <span class="keyword">class</span> <span class="title class_">HashMap</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span>:</span><br><span class="line">        <span class="built_in">Iterator</span>()</span><br><span class="line">            : <span class="built_in">m_owner</span>(<span class="literal">nullptr</span>)</span><br><span class="line">            , <span class="built_in">m_bucket</span>(<span class="number">0</span>) &#123;&#125;</span><br><span class="line"></span><br><span class="line">        <span class="built_in">Iterator</span>(<span class="type">const</span> Iterator&amp; other)</span><br><span class="line">            : <span class="built_in">m_owner</span>(other.m_owner)</span><br><span class="line">            , <span class="built_in">m_bucket</span>(other.m_bucket)</span><br><span class="line">            , <span class="built_in">m_iter</span>(other.m_iter) &#123;&#125;</span><br><span class="line"></span><br><span class="line">        <span class="built_in">Iterator</span>(HashMap* owner, <span class="type">int</span> bucket, BucketIterator_t iter)</span><br><span class="line">            : <span class="built_in">m_owner</span>(owner)</span><br><span class="line">            , <span class="built_in">m_bucket</span>(bucket)</span><br><span class="line">            , <span class="built_in">m_iter</span>(iter) &#123;&#125;</span><br><span class="line"></span><br><span class="line">        ~<span class="built_in">Iterator</span>() &#123;&#125;</span><br><span class="line"></span><br><span class="line">        Iterator&amp; <span class="keyword">operator</span> =(<span class="type">const</span> Iterator&amp; other) &#123;</span><br><span class="line">            <span class="keyword">if</span> (&amp;other != <span class="keyword">this</span>) &#123;</span><br><span class="line">                m_owner = other.m_owner;</span><br><span class="line">                m_bucket = other.m_bucket;</span><br><span class="line">                m_iter = other.m_iter;</span><br><span class="line">            &#125;</span><br><span class="line">            <span class="keyword">return</span> *<span class="keyword">this</span>;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        BucketEntry_t&amp; <span class="keyword">operator</span> *() &#123;</span><br><span class="line">            <span class="keyword">return</span> m_iter.<span class="keyword">operator</span> *();</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        BucketEntry_t* <span class="keyword">operator</span> -&gt;() &#123;</span><br><span class="line">            <span class="keyword">return</span> m_iter.<span class="keyword">operator</span> -&gt;();</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        ...</span><br></pre></td></tr></table></figure>
+
+<p>HashMap的迭代器，重载*和-&gt;符号时，希望能直接返回桶类型Map相对应迭代器的返回值。但Map的模板参数是Key_t和Value_t，其迭代器返回值类型Entry_t是Pair&lt;Key_t, Value_t&gt;，属于其内部实现细节，不应该对外暴露。另一种方式只能是在HashMap里定义一种与Entry_t相同的类型BucketEntry_t，这样能工作。但在设计上，BucketEntry_t使得HashMap迭代器对桶类型Map形成了依赖，一边改动，另一边也要相应修改，这种耦合是不必要的。</p>
+<p><strong>函数返回类型</strong> 推导即适用于这种场景，通过将返回值定义为 <strong>auto</strong>，无需再定义适配类型BucketEntry_t，代码变得简洁，也降低了耦合。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> KeyType</span><br><span class="line">, <span class="keyword">typename</span> ValueType</span><br><span class="line">, <span class="keyword">typename</span> CompareType = LessCompare&lt;KeyType&gt;</span><br><span class="line">, <span class="keyword">typename</span> HasherType = IntegerHasher&lt;KeyType&gt;</span><br><span class="line">, <span class="type">int</span> BUCKETSIZE = <span class="number">1024</span></span><br><span class="line">, <span class="keyword">typename</span> AllocatorFamily = HeapAllocator&lt;&gt;</span><br><span class="line">&gt;</span><br><span class="line"><span class="keyword">class</span> HashMap &#123;</span><br><span class="line">    <span class="built_in">DISALLOW_COPY_AND_ASSIGN</span>(HashMap)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">using</span> Key_t = KeyType;</span><br><span class="line">    <span class="keyword">using</span> Value_t = ValueType;</span><br><span class="line">    <span class="keyword">using</span> Compare_t = CompareType;</span><br><span class="line">    <span class="keyword">using</span> Hasher_t = HasherType;</span><br><span class="line">    <span class="keyword">using</span> Allocator_t = AllocatorFamily;</span><br><span class="line">    <span class="keyword">using</span> Bucket_t = Map&lt;Key_t, Value_t, Compare_t, Allocator_t&gt;;</span><br><span class="line">    <span class="keyword">using</span> BucketIterator_t = <span class="keyword">typename</span> Bucket_t::Iterator_t;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">class</span> <span class="title class_">Iterator</span> &#123;</span><br><span class="line">        <span class="keyword">friend</span> <span class="keyword">class</span> <span class="title class_">HashMap</span>;</span><br><span class="line"></span><br><span class="line">        ...</span><br><span class="line"></span><br><span class="line">        <span class="keyword">auto</span>&amp; <span class="keyword">operator</span> *() &#123;</span><br><span class="line">            <span class="keyword">return</span> m_iter.<span class="keyword">operator</span> *();</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">auto</span>* <span class="keyword">operator</span> -&gt;() &#123;</span><br><span class="line">            <span class="keyword">return</span> m_iter.<span class="keyword">operator</span> -&gt;();</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        ...</span><br></pre></td></tr></table></figure>
+
+<p>完整代码在<a target="_blank" rel="noopener" href="https://github.com/KaleoFeng/Metazion/blob/master/Metazion/Share/Collection/HashMap.hpp">这里</a>。</p>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Cpp/" rel="tag"># Cpp</a>
+              <a href="/tags/Metazion/" rel="tag"># Metazion</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2014/10/26/2014-10-26/" rel="prev" title="MMO游戏服务器MetazionWorld架构及实现">
+                  <i class="fa fa-angle-left"></i> MMO游戏服务器MetazionWorld架构及实现
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2014/12/15/2014-12-15/" rel="next" title="MMO游戏客户端MetazionClient实现">
+                  MMO游戏客户端MetazionClient实现 <i class="fa fa-angle-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2023</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">Kaleo Feng</span>
+  </div>
+  <div class="powered-by">由 <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a> 强力驱动
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="返回顶部">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous"></script>
+<script src="/js/comments.js"></script><script src="/js/utils.js"></script><script src="/js/motion.js"></script><script src="/js/schemes/muse.js"></script><script src="/js/next-boot.js"></script>
+
+  
+
+
+
+
+
+
+  
+
+
+
+
+
+</body>
+</html>

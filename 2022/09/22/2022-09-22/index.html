@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 6.3.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" integrity="sha256-CTSx/A06dm1B063156EVh15m6Y67pAjZZaQc89LLSrU=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"qilu.me","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.18.2","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":{"enable":false,"style":null},"fold":{"enable":false,"height":500},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"prism":false,"i18n":{"placeholder":"搜索...","empty":"没有找到任何搜索结果：${query}","hits_time":"找到 ${hits} 个搜索结果（用时 ${time} 毫秒）","hits":"找到 ${hits} 个搜索结果"}}</script><script src="/js/config.js"></script>
+
+    <meta name="description" content="之前写过一个微博超话批量关注、签到、发帖、捞贴的脚本，还录了视频，代码基于魂签浏览器扩展。因为扩展作者近来没有更新过代码，现有的构建程序在新版的浏览器下执行出错，所以我fork了一份做了修改并维护。 批量操作原理，就是先使用Fiddler或Charles等工具，抓取用户真实点击时HTTP请求的URI和上下行数据，脚本同样请求即可。浏览器扩展权限很大，从脚本里发起的操作基本等同于用户的直接操作。只要">
+<meta property="og:type" content="article">
+<meta property="og:title" content="微博超话批量关注、签到、发帖、评论、捞贴一键脚本（油猴扩展版）">
+<meta property="og:url" content="https://qilu.me/2022/09/22/2022-09-22/index.html">
+<meta property="og:site_name" content="樂只君子">
+<meta property="og:description" content="之前写过一个微博超话批量关注、签到、发帖、捞贴的脚本，还录了视频，代码基于魂签浏览器扩展。因为扩展作者近来没有更新过代码，现有的构建程序在新版的浏览器下执行出错，所以我fork了一份做了修改并维护。 批量操作原理，就是先使用Fiddler或Charles等工具，抓取用户真实点击时HTTP请求的URI和上下行数据，脚本同样请求即可。浏览器扩展权限很大，从脚本里发起的操作基本等同于用户的直接操作。只要">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://qilu.me/2022-09-22/weibo_ui.png">
+<meta property="article:published_time" content="2022-09-22T12:00:00.000Z">
+<meta property="article:modified_time" content="2023-10-31T14:26:18.524Z">
+<meta property="article:author" content="Kaleo Feng">
+<meta property="article:tag" content="微博超话">
+<meta property="article:tag" content="油猴">
+<meta property="article:tag" content="Tampermoney">
+<meta property="article:tag" content="JavaScrip">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://qilu.me/2022-09-22/weibo_ui.png">
+
+
+<link rel="canonical" href="https://qilu.me/2022/09/22/2022-09-22/">
+
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh-CN","comments":true,"permalink":"https://qilu.me/2022/09/22/2022-09-22/","path":"2022/09/22/2022-09-22/","title":"微博超话批量关注、签到、发帖、评论、捞贴一键脚本（油猴扩展版）"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>微博超话批量关注、签到、发帖、评论、捞贴一键脚本（油猴扩展版） | 樂只君子</title>
+  
+
+
+
+
+
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">樂只君子</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">起舞弄清影</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="搜索" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a></li>
+  </ul>
+</nav>
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-overview-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Kaleo Feng</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">48</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">4</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">99</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://qilu.me/2022/09/22/2022-09-22/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Kaleo Feng">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="樂只君子">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="微博超话批量关注、签到、发帖、评论、捞贴一键脚本（油猴扩展版） | 樂只君子">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          微博超话批量关注、签到、发帖、评论、捞贴一键脚本（油猴扩展版）
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">发表于</span>
+
+      <time title="创建时间：2022-09-22 20:00:00" itemprop="dateCreated datePublished" datetime="2022-09-22T20:00:00+08:00">2022-09-22</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">分类于</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/Tech/" itemprop="url" rel="index"><span itemprop="name">Tech</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><p>之前写过一个微博超话批量关注、签到、发帖、捞贴的<a target="_blank" rel="noopener" href="https://github.com/kaleofeng/misc/tree/master/soulsign/weibo">脚本</a>，还录了<a target="_blank" rel="noopener" href="https://www.bilibili.com/video/BV1x54y1i759">视频</a>，代码基于<a target="_blank" rel="noopener" href="https://github.com/inu1255/soulsign-chrome">魂签</a>浏览器扩展。因为扩展作者近来没有更新过代码，现有的构建程序在新版的浏览器下执行出错，所以我fork了<a target="_blank" rel="noopener" href="https://github.com/metaparty/soulsign-chrome">一份</a>做了修改并维护。</p>
+<p>批量操作原理，就是先使用Fiddler或Charles等工具，抓取用户真实点击时HTTP请求的URI和上下行数据，脚本同样请求即可。浏览器扩展权限很大，从脚本里发起的操作基本等同于用户的直接操作。只要用户已经登录过微博，脚本操作可以直接使用其cookie，不存在登录状态问题</p>
+<p>以 批量发帖 为例，发帖 HTTP请求代码：</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">const</span> rsp = <span class="keyword">await</span> <span class="title function_">axios</span>(&#123;</span><br><span class="line">    <span class="attr">url</span>: url,</span><br><span class="line">    <span class="attr">method</span>: <span class="string">&#x27;POST&#x27;</span>,</span><br><span class="line">    <span class="attr">headers</span>: &#123;</span><br><span class="line">        <span class="string">&#x27;Content-Type&#x27;</span>: <span class="string">&#x27;application/x-www-form-urlencoded&#x27;</span>,</span><br><span class="line">        <span class="string">&#x27;X-Requested-With&#x27;</span>: <span class="string">&#x27;XMLHttpRequest&#x27;</span>,</span><br><span class="line">        <span class="string">&#x27;Origin&#x27;</span>: <span class="string">&#x27;https://weibo.com&#x27;</span>,</span><br><span class="line">        <span class="string">&#x27;Referer&#x27;</span>: <span class="string">`https://weibo.com/p/<span class="subst">$&#123;hid&#125;</span>/super_index`</span></span><br><span class="line">    &#125;,</span><br><span class="line">    <span class="attr">data</span>: &#123;</span><br><span class="line">        <span class="string">&#x27;id&#x27;</span>: hid,</span><br><span class="line">        <span class="string">&#x27;domain&#x27;</span>: <span class="string">&#x27;100808&#x27;</span>,</span><br><span class="line">        <span class="string">&#x27;module&#x27;</span>: <span class="string">&#x27;share_topic&#x27;</span>,</span><br><span class="line">        <span class="string">&#x27;title&#x27;</span>: <span class="string">&#x27;%E5%8F%91%E5%B8%96&#x27;</span>,</span><br><span class="line">        <span class="string">&#x27;content&#x27;</span>: <span class="string">&#x27;&#x27;</span>,</span><br><span class="line">        <span class="string">&#x27;api_url&#x27;</span>: <span class="string">&#x27;http://i.huati.weibo.com/pcpage/super/publisher&#x27;</span>,</span><br><span class="line">        <span class="string">&#x27;spr&#x27;</span>: <span class="string">&#x27;&#x27;</span>,</span><br><span class="line">        <span class="string">&#x27;extraurl&#x27;</span>: <span class="string">&#x27;&#x27;</span>,</span><br><span class="line">        <span class="string">&#x27;is_stock&#x27;</span>: <span class="string">&#x27;&#x27;</span>,</span><br><span class="line">        <span class="string">&#x27;check_url&#x27;</span>: <span class="string">`http%3A%2F%2Fi.huati.weibo.com%2Faj%2Fsuperpublishauth%26pageid%3D<span class="subst">$&#123;hid&#125;</span>%26uid%3D1764819037`</span>,</span><br><span class="line">        <span class="string">&#x27;location&#x27;</span>: <span class="string">&#x27;page_100808_super_index&#x27;</span>,</span><br><span class="line">        <span class="string">&#x27;text&#x27;</span>: text,</span><br><span class="line">        <span class="string">&#x27;appkey&#x27;</span>: <span class="string">&#x27;&#x27;</span>,</span><br><span class="line">        <span class="string">&#x27;style_type&#x27;</span>: <span class="number">1</span>,</span><br><span class="line">        <span class="string">&#x27;pic_id&#x27;</span>: picture,</span><br><span class="line">        <span class="string">&#x27;tid&#x27;</span>: <span class="string">&#x27;&#x27;</span>,</span><br><span class="line">        <span class="string">&#x27;pdetail&#x27;</span>: hid,</span><br><span class="line">        <span class="string">&#x27;mid&#x27;</span>: <span class="string">&#x27;&#x27;</span>,</span><br><span class="line">        <span class="string">&#x27;isReEdit&#x27;</span>: <span class="string">&#x27;false&#x27;</span>,</span><br><span class="line">        <span class="string">&#x27;sync_wb&#x27;</span>: <span class="number">0</span>,</span><br><span class="line">        <span class="string">&#x27;pub_source&#x27;</span>: <span class="string">&#x27;page_2&#x27;</span>,</span><br><span class="line">        <span class="string">&#x27;api&#x27;</span>: <span class="string">`http://i.huati.weibo.com/pcpage/operation/publisher/sendcontent?sign=super&amp;page_id=<span class="subst">$&#123;hid&#125;</span>`</span>,</span><br><span class="line">        <span class="string">&#x27;longtext&#x27;</span>: <span class="number">1</span>,</span><br><span class="line">        <span class="string">&#x27;topic_id&#x27;</span>: <span class="string">`1022:<span class="subst">$&#123;hid&#125;</span>`</span>,</span><br><span class="line">        <span class="string">&#x27;pub_type&#x27;</span>: <span class="string">&#x27;dialog&#x27;</span>,</span><br><span class="line">        <span class="string">&#x27;_t&#x27;</span>: <span class="number">0</span></span><br><span class="line">    &#125;,</span><br><span class="line">    <span class="attr">transformRequest</span>: [<span class="keyword">function</span>(<span class="params">data</span>) &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="title function_">objectToUrlEncodedParams</span>(data);</span><br><span class="line">    &#125;]</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+
+<p>数据直接配置在脚本里：</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">let chaohuas = <span class="punctuation">[</span><span class="punctuation">&#123;</span></span><br><span class="line">        <span class="attr">&quot;hid&quot;</span><span class="punctuation">:</span> <span class="string">&quot;100808db06c78d1e24cf708a14ce81c9b617ec&quot;</span><span class="punctuation">,</span></span><br><span class="line">        <span class="attr">&quot;hname&quot;</span><span class="punctuation">:</span> <span class="string">&quot;测试超话&quot;</span><span class="punctuation">,</span></span><br><span class="line">        <span class="attr">&quot;text&quot;</span><span class="punctuation">:</span> <span class="string">&quot;#测试[超话]# 这是要发布的内容\r\n单图&quot;</span><span class="punctuation">,</span></span><br><span class="line">        <span class="attr">&quot;picture&quot;</span><span class="punctuation">:</span> <span class="string">&quot;0072KUQXly1ghh1d0daf7j30jg163t9r&quot;</span></span><br><span class="line">    <span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="punctuation">&#123;</span></span><br><span class="line">        <span class="attr">&quot;hid&quot;</span><span class="punctuation">:</span> <span class="string">&quot;1008084b97c8f5ab54d661a331566ab64bf9d6&quot;</span><span class="punctuation">,</span></span><br><span class="line">        <span class="attr">&quot;hname&quot;</span><span class="punctuation">:</span> <span class="string">&quot;趣味测试超话&quot;</span><span class="punctuation">,</span></span><br><span class="line">        <span class="attr">&quot;text&quot;</span><span class="punctuation">:</span> <span class="string">&quot;#测试[超话]# 这是要发布的内容\r\n多图&quot;</span><span class="punctuation">,</span></span><br><span class="line">        <span class="attr">&quot;picture&quot;</span><span class="punctuation">:</span> <span class="string">&quot;0072KUQXly1ghh1d0daf7j30jg163t9r|0072KUQXly1ghh1d0wgjuj30j60n9ab0&quot;</span></span><br><span class="line">    <span class="punctuation">&#125;</span></span><br><span class="line"><span class="punctuation">]</span>;</span><br></pre></td></tr></table></figure>
+
+<p>这里配置了两条带图微博，会分别发在两个超话，详细说明可参考开头的视频。</p>
+<p>视频虽然浏览量不高，但还是有一些同学使用并提出了问题和建议，其中就有希望能在 <strong>油猴</strong> 扩展下使用。考虑到 <strong>魂签</strong> 扩展确实小众，且没有上架官方商店，只能以开发者模式使用，而油猴受众更广，资料更多，对新人更友好，于是决定做一版油猴脚本。</p>
+<p>为了维护方便，最大可能保持两个扩展所用脚本代码的一致性，只对不兼容的地方做了调整。</p>
+<p>一个不同是，魂签扩展界面上，可以直接点击执行脚本，也可以设置定时运行。油猴扩展的机制是进入匹配网站时，自动运行脚本。批量签到 等操作，还是希望用户主动点击执行，所以油猴版采用的方案是在网页之上添加一层操作界面，包括 关闭、批量关注 等按钮，供用户操作。</p>
+<p>以 批量关注 脚本为例，界面相关代码如下：</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 容纳按钮的容器，同时做互斥，可能多个脚本共用</span></span><br><span class="line"><span class="keyword">let</span> containerId = <span class="string">&#x27;kf-container&#x27;</span>;</span><br><span class="line"><span class="keyword">let</span> container = <span class="variable language_">document</span>.<span class="title function_">getElementById</span>(containerId);</span><br><span class="line"><span class="keyword">if</span> (!container) &#123;</span><br><span class="line">    <span class="comment">// 引入Bootstrap CSS</span></span><br><span class="line">    <span class="keyword">var</span> bootstrapCss = <span class="variable language_">document</span>.<span class="title function_">createElement</span>(<span class="string">&#x27;link&#x27;</span>);</span><br><span class="line">    bootstrapCss.<span class="property">rel</span> = <span class="string">&#x27;stylesheet&#x27;</span>;</span><br><span class="line">    bootstrapCss.<span class="property">href</span> = <span class="string">&#x27;https://cdn.jsdelivr.net/npm/bootstrap@5/dist/css/bootstrap.min.css&#x27;</span>;</span><br><span class="line">    <span class="variable language_">document</span>.<span class="property">head</span>.<span class="title function_">appendChild</span>(bootstrapCss);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 创建容器</span></span><br><span class="line">    container = <span class="variable language_">document</span>.<span class="title function_">createElement</span>(<span class="string">&#x27;div&#x27;</span>);</span><br><span class="line">    container.<span class="property">id</span> = containerId;</span><br><span class="line">    container.<span class="property">className</span> = <span class="string">&#x27;btn-group-vertical btn-group-sm position-fixed&#x27;</span>;</span><br><span class="line">    container.<span class="property">style</span>.<span class="property">left</span> = <span class="string">&#x27;5px&#x27;</span>;</span><br><span class="line">    container.<span class="property">style</span>.<span class="property">top</span> = <span class="string">&#x27;5px&#x27;</span>;</span><br><span class="line">    container.<span class="property">style</span>[<span class="string">&#x27;z-index&#x27;</span>] = <span class="string">&quot;999999&quot;</span>;</span><br><span class="line">    <span class="variable language_">document</span>.<span class="property">body</span>.<span class="title function_">appendChild</span>(container);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 关闭按钮</span></span><br><span class="line">    <span class="keyword">let</span> closeBtn = <span class="variable language_">document</span>.<span class="title function_">createElement</span>(<span class="string">&quot;button&quot;</span>);</span><br><span class="line">    closeBtn.<span class="property">className</span> = <span class="string">&#x27;btn-close&#x27;</span>;</span><br><span class="line">    closeBtn.<span class="property">innerText</span> = <span class="string">&#x27;&#x27;</span>;</span><br><span class="line">    container.<span class="title function_">appendChild</span>(closeBtn);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 点击关闭容器</span></span><br><span class="line">    closeBtn.<span class="title function_">addEventListener</span>(<span class="string">&#x27;click&#x27;</span>, <span class="keyword">function</span>(<span class="params"></span>) &#123;</span><br><span class="line">        <span class="variable language_">document</span>.<span class="property">body</span>.<span class="title function_">removeChild</span>(container);</span><br><span class="line">    &#125;);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 批量关注按钮</span></span><br><span class="line"><span class="keyword">let</span> followBtn = <span class="variable language_">document</span>.<span class="title function_">createElement</span>(<span class="string">&quot;button&quot;</span>);</span><br><span class="line">followBtn.<span class="property">className</span> = <span class="string">&quot;kf-button btn btn-info&quot;</span>;</span><br><span class="line">followBtn.<span class="property">innerText</span> = <span class="string">&quot;批量关注&quot;</span>;</span><br><span class="line">container.<span class="title function_">appendChild</span>(followBtn);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 改变所有关联按钮可点击状态</span></span><br><span class="line"><span class="keyword">function</span> <span class="title function_">changeRelatedButtonState</span>(<span class="params">disabled</span>) &#123;</span><br><span class="line">    <span class="keyword">let</span> buttons = <span class="variable language_">document</span>.<span class="title function_">getElementsByClassName</span>(<span class="string">&#x27;kf-button&#x27;</span>);</span><br><span class="line">    <span class="keyword">for</span> (<span class="keyword">let</span> button <span class="keyword">of</span> buttons) &#123;</span><br><span class="line">        button.<span class="property">disabled</span> = disabled;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 点击开始执行</span></span><br><span class="line">followBtn.<span class="title function_">addEventListener</span>(<span class="string">&#x27;click&#x27;</span>, <span class="keyword">function</span>(<span class="params"></span>) &#123;</span><br><span class="line">    <span class="title function_">changeRelatedButtonState</span>(<span class="literal">true</span>);</span><br><span class="line">    <span class="title function_">run</span>()</span><br><span class="line">        .<span class="title function_">then</span>(<span class="function"><span class="params">result</span> =&gt;</span> <span class="title function_">alert</span>(<span class="string">`微博超话批量关注成功！（＾∀＾）\n<span class="subst">$&#123;result&#125;</span>`</span>))</span><br><span class="line">        .<span class="title function_">catch</span>(<span class="function"><span class="params">err</span> =&gt;</span> <span class="title function_">alert</span>(<span class="string">`微博超话批量关注出错！（&gt;﹏&lt;）\n<span class="subst">$&#123;err&#125;</span>`</span>))</span><br><span class="line">        .<span class="title function_">finally</span>(<span class="function">() =&gt;</span> <span class="title function_">changeRelatedButtonState</span>(<span class="literal">false</span>));</span><br><span class="line">&#125;, <span class="literal">false</span>);</span><br></pre></td></tr></table></figure>
+
+<p>关注、签到、发帖和捞贴分成了4个扩展脚本，可能单个使用也可能同时使用，对应按钮都放在同一个容器，多个脚本也只会创建一个容器，同时也保证只执行一次公共逻辑。</p>
+<p>注意一下 <code>CSS</code> 文件的引入方式，使用 <code>@resource</code> 没有效果，只能以这种添加页面元素的方式引入。</p>
+<p>实际显示：</p>
+<p> <img src="/2022-09-22/weibo_ui.png" alt="weibo_ui"></p>
+<p>另外一个不同是，魂签可以直接跨域，而油猴需要授权使用 <code>GM_xmlhttpRequest</code> 来跨域。一般的 <code>GET</code>&#x2F;<code>PUT</code>请求都直接使用 <strong>axios</strong>，只有跨域的地方，才封装使用这个特定API，并确保跟 axios 的参数和返回值基本一致。封装代码如下：</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">function</span> <span class="title function_">objectToUrlEncodedParams</span>(<span class="params">obj</span>) &#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="title class_">Object</span>.<span class="title function_">entries</span>(obj)</span><br><span class="line">        .<span class="title function_">map</span>(<span class="function">(<span class="params">[key, value]</span>) =&gt;</span> <span class="string">`<span class="subst">$&#123;<span class="built_in">encodeURIComponent</span>(key)&#125;</span>=<span class="subst">$&#123;<span class="built_in">encodeURIComponent</span>(value)&#125;</span>`</span>)</span><br><span class="line">        .<span class="title function_">join</span>(<span class="string">&#x27;&amp;&#x27;</span>);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">function</span> <span class="title function_">xmlHttpRequest</span>(<span class="params">url, method, headers = &#123;&#125;, data = &#123;&#125;</span>) &#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> <span class="title class_">Promise</span>(<span class="function">(<span class="params">resolve, reject</span>) =&gt;</span> &#123;</span><br><span class="line">        <span class="title function_">GM_xmlhttpRequest</span>(&#123;</span><br><span class="line">            <span class="attr">url</span>: url,</span><br><span class="line">            <span class="attr">method</span>: method,</span><br><span class="line">            <span class="attr">headers</span>: headers,</span><br><span class="line">            <span class="attr">data</span>: data,</span><br><span class="line">            <span class="attr">onload</span>: <span class="keyword">function</span>(<span class="params">rsp</span>) &#123;</span><br><span class="line">                <span class="title function_">resolve</span>(&#123;</span><br><span class="line">                    <span class="attr">status</span>: rsp.<span class="property">status</span>,</span><br><span class="line">                    <span class="attr">data</span>: rsp.<span class="property">response</span>,</span><br><span class="line">                &#125;);</span><br><span class="line">            &#125;,</span><br><span class="line">            <span class="attr">onerror</span>: <span class="keyword">function</span>(<span class="params">rsp</span>) &#123;</span><br><span class="line">                <span class="title function_">reject</span>(&#123;</span><br><span class="line">                    <span class="attr">status</span>: rsp.<span class="property">status</span>,</span><br><span class="line">                    <span class="attr">data</span>: rsp.<span class="property">response</span>,</span><br><span class="line">                &#125;);</span><br><span class="line">            &#125;,</span><br><span class="line">        &#125;)</span><br><span class="line">    &#125;);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">function</span> <span class="title function_">xmlHttpGet</span>(<span class="params">req</span>) &#123;</span><br><span class="line">    <span class="keyword">let</span> url = req.<span class="property">url</span> || <span class="string">&#x27;&#x27;</span>;</span><br><span class="line">    <span class="keyword">let</span> method = <span class="string">&#x27;GET&#x27;</span>;</span><br><span class="line">    <span class="keyword">let</span> headers = req.<span class="property">headers</span> || &#123;&#125;;</span><br><span class="line">    <span class="keyword">let</span> params = req.<span class="property">params</span> || &#123;&#125;;</span><br><span class="line">    <span class="keyword">return</span> <span class="title function_">xmlHttpRequest</span>(<span class="string">`<span class="subst">$&#123;url&#125;</span>?<span class="subst">$&#123;objectToUrlEncodedParams(params)&#125;</span>`</span>, method, headers);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>代码放在了<a target="_blank" rel="noopener" href="https://github.com/kaleofeng/misc/tree/master/tampermoney/weibo">GitHub</a>。</p>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/%E5%BE%AE%E5%8D%9A%E8%B6%85%E8%AF%9D/" rel="tag"># 微博超话</a>
+              <a href="/tags/%E6%B2%B9%E7%8C%B4/" rel="tag"># 油猴</a>
+              <a href="/tags/Tampermoney/" rel="tag"># Tampermoney</a>
+              <a href="/tags/JavaScrip/" rel="tag"># JavaScrip</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2022/09/16/2022-09-16/" rel="prev" title="Certbot申请和续签Let's Encrypt证书一键脚本">
+                  <i class="fa fa-angle-left"></i> Certbot申请和续签Let's Encrypt证书一键脚本
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2023/04/08/2023-04-08/" rel="next" title="UE4构建时未定义的引用的链接问题">
+                  UE4构建时未定义的引用的链接问题 <i class="fa fa-angle-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2023</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">Kaleo Feng</span>
+  </div>
+  <div class="powered-by">由 <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a> 强力驱动
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="返回顶部">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous"></script>
+<script src="/js/comments.js"></script><script src="/js/utils.js"></script><script src="/js/motion.js"></script><script src="/js/schemes/muse.js"></script><script src="/js/next-boot.js"></script>
+
+  
+
+
+
+
+
+
+  
+
+
+
+
+
+</body>
+</html>

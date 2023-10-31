@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 6.3.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" integrity="sha256-CTSx/A06dm1B063156EVh15m6Y67pAjZZaQc89LLSrU=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"qilu.me","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.18.2","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":{"enable":false,"style":null},"fold":{"enable":false,"height":500},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"prism":false,"i18n":{"placeholder":"搜索...","empty":"没有找到任何搜索结果：${query}","hits_time":"找到 ${hits} 个搜索结果（用时 ${time} 毫秒）","hits":"找到 ${hits} 个搜索结果"}}</script><script src="/js/config.js"></script>
+
+    <meta name="description" content="服务器开发，高并发始终是一个不断追求的目标。若实现这个目标，将所有阻塞操作异步化是必不可少的。执行异步任务，最容易想到的是使用多线程，但线程不是多多益善，相反要控制在一定的数量。如何在多线程环境下，合理地进行任务派发，是这篇文章要讨论的。 就像在概述中描述的，单个游戏服务器进程主要分三层：网络、逻辑和数据存取，下面将具体阐述。 网络层使用Netty，将有若干worker线程收发网络消息，收到消息后">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Java游戏服务器-多线程异步任务派发">
+<meta property="og:url" content="https://qilu.me/2015/09/27/2015-09-27/index.html">
+<meta property="og:site_name" content="樂只君子">
+<meta property="og:description" content="服务器开发，高并发始终是一个不断追求的目标。若实现这个目标，将所有阻塞操作异步化是必不可少的。执行异步任务，最容易想到的是使用多线程，但线程不是多多益善，相反要控制在一定的数量。如何在多线程环境下，合理地进行任务派发，是这篇文章要讨论的。 就像在概述中描述的，单个游戏服务器进程主要分三层：网络、逻辑和数据存取，下面将具体阐述。 网络层使用Netty，将有若干worker线程收发网络消息，收到消息后">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2015-09-27T15:00:00.000Z">
+<meta property="article:modified_time" content="2022-09-18T03:53:03.030Z">
+<meta property="article:author" content="Kaleo Feng">
+<meta property="article:tag" content="游戏开发">
+<meta property="article:tag" content="游戏服务器">
+<meta property="article:tag" content="Java">
+<meta property="article:tag" content="并发编程">
+<meta property="article:tag" content="多线程">
+<meta property="article:tag" content="异步任务">
+<meta name="twitter:card" content="summary">
+
+
+<link rel="canonical" href="https://qilu.me/2015/09/27/2015-09-27/">
+
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh-CN","comments":true,"permalink":"https://qilu.me/2015/09/27/2015-09-27/","path":"2015/09/27/2015-09-27/","title":"Java游戏服务器-多线程异步任务派发"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>Java游戏服务器-多线程异步任务派发 | 樂只君子</title>
+  
+
+
+
+
+
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">樂只君子</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">起舞弄清影</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="搜索" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a></li>
+  </ul>
+</nav>
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-overview-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Kaleo Feng</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">48</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">4</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">99</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://qilu.me/2015/09/27/2015-09-27/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Kaleo Feng">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="樂只君子">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="Java游戏服务器-多线程异步任务派发 | 樂只君子">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Java游戏服务器-多线程异步任务派发
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">发表于</span>
+
+      <time title="创建时间：2015-09-27 23:00:00" itemprop="dateCreated datePublished" datetime="2015-09-27T23:00:00+08:00">2015-09-27</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">分类于</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/Tech/" itemprop="url" rel="index"><span itemprop="name">Tech</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><p>服务器开发，高并发始终是一个不断追求的目标。若实现这个目标，将所有阻塞操作异步化是必不可少的。执行异步任务，最容易想到的是使用多线程，但线程不是多多益善，相反要控制在一定的数量。如何在多线程环境下，合理地进行任务派发，是这篇文章要讨论的。</p>
+<p>就像在<a href="/post/tech/2015-06-16">概述</a>中描述的，单个游戏服务器进程主要分三层：网络、逻辑和数据存取，下面将具体阐述。</p>
+<p>网络层使用Netty，将有若干worker线程收发网络消息，收到消息后如何处理呢？我见过一些服务器程序，直接在收发消息的回调函数里，执行逻辑，甚至进行数据存取，这显然是不合适的。网络线程应该专注于收发消息的操作。首先网络线程一般都是多线程，直接执行业务逻辑，即意味着业务逻辑在多线程环境下，数据同步等就成了必须解决的问题。其次一旦业务逻辑耗时较多，尤其进行数据存取操作，网络线程就会阻塞，这将严重影响网络通信进而降低并发。合适的做法是将网络消息放到逻辑线程队列，所有后续业务逻辑都交由逻辑线程处理。在Java中可以使用concurrent包提供的队列容器，比如：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> ConcurrentLinkedQueue&lt;RequestAction&gt; requestActionQueue = <span class="keyword">new</span> <span class="title class_">ConcurrentLinkedQueue</span>&lt;RequestAction&gt;();</span><br></pre></td></tr></table></figure>
+
+<p>逻辑线程依次从队列里取出消息并处理。这里有一个常见的困惑，逻辑线程该使用单线程还是多线程。事情不能一概而论，但大多数情况下，逻辑层是最耗CPU的，多线程并不能提高性能，并会带来数据同步等相关的问题。所以在不知道如何抉择时，单线程是更好的选择。</p>
+<p>逻辑单线程，就意味着不应该有任何阻塞操作，而业务逻辑不可避免地要进行数据存取。异步任务派发就是为了解决诸如数据存取等阻塞操作需求，同时需要回调在任务结束后执行后续业务逻辑。先看一个具体示例：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">RAUserLoginCL</span> <span class="keyword">extends</span> <span class="title class_">RequestAction</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="type">UserLoginCL</span> <span class="variable">req</span> <span class="operator">=</span> <span class="literal">null</span>;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">setRequest</span><span class="params">(Message msg)</span> &#123;</span><br><span class="line">        req = (UserLoginCL) msg;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">execute</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="keyword">final</span> <span class="type">String</span> <span class="variable">username</span> <span class="operator">=</span> req.username;</span><br><span class="line">        <span class="keyword">final</span> <span class="type">String</span> <span class="variable">password</span> <span class="operator">=</span> req.password;</span><br><span class="line"></span><br><span class="line">        <span class="type">TaskLoadUser</span> <span class="variable">task</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">TaskLoadUser</span>(session, req);</span><br><span class="line"></span><br><span class="line">        <span class="type">User</span> <span class="variable">user</span> <span class="operator">=</span> AppLogin.getLogicService().getUserManager().getUser(username);</span><br><span class="line">        <span class="keyword">if</span> (user != <span class="literal">null</span>) &#123;</span><br><span class="line">            task.setUserData(user.getUserData());</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        AppLogin.getLogicService().getTaskManager().pushTask(task);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>上面这段代码，即是用户登录消息的处理。<code>UserLoginCL</code> 是登录消息包，网络IO线程收到该消息后，封装成 <code>RequestAction</code> 并push到逻辑线程消息队列。逻辑线程在逻辑循环中取到该消息，并调用 <code>execute()</code> 进行业务处理。这里将处理逻辑简化，简单说就是将请求信息再封装成 <code>TaskLoadUser</code> 任务，因为我们必须先要（从数据库）加载用户数据（<code>UserData</code>）到内存，才能进行密码验证等逻辑。</p>
+<p>这个任务依然会首先放到一个当前逻辑线程的任务队列，然后等待执行。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">TaskManager</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> ConcurrentLinkedQueue&lt;Task&gt; taskQueue = <span class="keyword">new</span> <span class="title class_">ConcurrentLinkedQueue</span>&lt;Task&gt;();</span><br><span class="line">    <span class="keyword">private</span> ConcurrentHashMap&lt;Integer, Task&gt; taskMap = <span class="keyword">new</span> <span class="title class_">ConcurrentHashMap</span>&lt;Integer, Task&gt;();</span><br><span class="line">    <span class="keyword">private</span> <span class="type">AtomicInteger</span> <span class="variable">nextSeq</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">AtomicInteger</span>(<span class="number">1000</span>);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">tick</span><span class="params">(<span class="type">long</span> milliseconds)</span> &#123;</span><br><span class="line">        <span class="keyword">while</span> (!taskQueue.isEmpty()) &#123;</span><br><span class="line">            <span class="type">Task</span> <span class="variable">task</span> <span class="operator">=</span> taskQueue.poll();</span><br><span class="line">            task.execute();</span><br><span class="line"></span><br><span class="line">            putTask(task);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        Iterator&lt;Map.Entry&lt;Integer, Task&gt;&gt; iterator = taskMap.entrySet().iterator();</span><br><span class="line">        <span class="keyword">while</span> (iterator.hasNext()) &#123;</span><br><span class="line">            Map.Entry&lt;Integer, Task&gt; entry = iterator.next();</span><br><span class="line">            <span class="type">Task</span> <span class="variable">task</span> <span class="operator">=</span> entry.getValue();</span><br><span class="line">            task.tick(milliseconds);</span><br><span class="line"></span><br><span class="line">            <span class="keyword">if</span> (task.isFinished()) &#123;</span><br><span class="line">                task.onFinish();</span><br><span class="line">                iterator.remove();</span><br><span class="line">                <span class="keyword">continue</span>;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            <span class="keyword">if</span> (task.isTimeout()) &#123;</span><br><span class="line">                task.onTimeout();</span><br><span class="line">                iterator.remove();</span><br><span class="line">                <span class="keyword">continue</span>;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    ...</span><br></pre></td></tr></table></figure>
+
+<p>看这个任务代码：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">TaskLoadUser</span> <span class="keyword">extends</span> <span class="title class_">Task</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="type">TransmitSession</span> <span class="variable">sessionIn</span> <span class="operator">=</span> <span class="literal">null</span>;</span><br><span class="line">    <span class="keyword">private</span> <span class="type">UserLoginCL</span> <span class="variable">reqIn</span> <span class="operator">=</span> <span class="literal">null</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="type">UserLoginLC</span> <span class="variable">rspOut</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">UserLoginLC</span>();</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">volatile</span> <span class="type">UserData</span> <span class="variable">userDataOut</span> <span class="operator">=</span> <span class="literal">null</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="title function_">TaskLoadUser</span><span class="params">(TransmitSession sessionIn, UserLoginCL req)</span> &#123;</span><br><span class="line">        <span class="built_in">this</span>.sessionIn = sessionIn;</span><br><span class="line">        <span class="built_in">this</span>.reqIn = req;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">execute</span><span class="params">()</span> &#123;</span><br><span class="line">        setResult(UserLoginLC.SUCCESS);</span><br><span class="line">        incDesire();</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (userDataOut != <span class="literal">null</span>) &#123;</span><br><span class="line">            decDesire();</span><br><span class="line">            <span class="keyword">return</span>;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        DaoService.execute(() -&gt; &#123;</span><br><span class="line">            <span class="keyword">do</span> &#123;</span><br><span class="line">                <span class="keyword">final</span> <span class="type">String</span> <span class="variable">username</span> <span class="operator">=</span> reqIn.username;</span><br><span class="line"></span><br><span class="line">                <span class="type">UserData</span> <span class="variable">userData</span> <span class="operator">=</span> DbUser.getUserDataByName(username);</span><br><span class="line"></span><br><span class="line">                <span class="comment">// 用户不存在</span></span><br><span class="line">                <span class="keyword">if</span> (userData == <span class="literal">null</span>) &#123;</span><br><span class="line">                    setResult(UserLoginLC.ERROR_NOUSER);</span><br><span class="line">                    <span class="keyword">break</span>;</span><br><span class="line">                &#125;</span><br><span class="line"></span><br><span class="line">                userDataOut = userData;</span><br><span class="line">            &#125; <span class="keyword">while</span> (<span class="literal">false</span>);</span><br><span class="line">            decDesire();</span><br><span class="line">        &#125;);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">onFinish</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="keyword">if</span> (result != UserLoginLC.SUCCESS) &#123;</span><br><span class="line">            rollback();</span><br><span class="line">            failResponse();</span><br><span class="line">            <span class="keyword">return</span>;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        succeedResponse();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">onTimeout</span><span class="params">()</span> &#123;</span><br><span class="line">        setResult(UserLoginLC.TIMEOUT);</span><br><span class="line">        rollback();</span><br><span class="line">        failResponse();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">setUserData</span><span class="params">(UserData userData)</span> &#123;</span><br><span class="line">        <span class="built_in">this</span>.userDataOut = userData;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">void</span> <span class="title function_">rollback</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="comment">// Noting to do</span></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">void</span> <span class="title function_">succeedResponse</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="comment">// 检查密码</span></span><br><span class="line">        <span class="keyword">if</span> (!reqIn.password.equals(userDataOut.password)) &#123;</span><br><span class="line">            rspOut.result = UserLoginLC.ERROR_WRONGPWD;</span><br><span class="line">            sessionIn.send(rspOut);</span><br><span class="line">            <span class="keyword">return</span>;</span><br><span class="line">        &#125;</span><br><span class="line">        ...</span><br><span class="line">        rspOut.result = (<span class="type">byte</span>) result;</span><br><span class="line">        rspOut.userId = userId;</span><br><span class="line">        rspOut.token = token;</span><br><span class="line">        sessionIn.send(rspOut);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">void</span> <span class="title function_">failResponse</span><span class="params">()</span> &#123;</span><br><span class="line">        rspOut.result = (<span class="type">byte</span>) result;</span><br><span class="line">        sessionIn.send(rspOut);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>上面两段代码是异步任务的核心。逻辑线程取到这个任务后，调用 <code>execute()</code>，它会通过数据存取层从数据库中加载数据。<code>execute()</code> 执行后，逻辑线程仍然继续检测这个任务，直到其完成或超时。如果完成会调用 <code>onFinish()</code> 执行后续逻辑，加载可能成功或失败，分别对应 <code>succeedResponse()</code> 和 <code>failResponse()</code>，如果执行超时则执行 <code>onTimeout()</code>。</p>
+<p><code>DaoService</code> 即对应数据存取层，实现上是一个线程池：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">DaoService</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="type">int</span> <span class="variable">IOTHREADNUMBER</span> <span class="operator">=</span> Runtime.getRuntime().availableProcessors() * <span class="number">2</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="type">ExecutorService</span> <span class="variable">exeSvc</span> <span class="operator">=</span> Executors.newFixedThreadPool(IOTHREADNUMBER);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">execute</span><span class="params">(Runnable daoOperation)</span> &#123;</span><br><span class="line">        exeSvc.execute(daoOperation);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>这就实现了多线程异步数据存取。代码很简短，不了解的可以查阅下Java线程池相关知识。</p>
+<p>逻辑线程使用数据存取层异步加载数据，加载完成与否，逻辑线程如何得知呢？<code>incDesire()</code> 和 <code>decDesire()</code>，就是用来解决这个问题，其类似引用计数。我们可以把所有阻塞操作分解成一个个可以用多线程去异步执行的子任务，先调用 <code>incDesire(N)</code> 增加计数，<strong>N</strong> 即分解的子任务数，然后使用  <code>DaoService.execute()</code> 去依次并行执行这些子任务。每完成一个子任务调用一次 <code>decDesire(1)</code> 将计数减1，计数为0时，即表明所有异步子任务都已执行完毕。如过指定时间内计数仍然大于0，即超时。还有一个技巧是，每执行完一个子任务，设置一个数据或标志，那么在整个任务失败或超时时，就可以执行 <code>rollback()</code> 回退已完成的子任务。</p>
+<p>这里有个地方需要注意下。即使只有一个子任务，也应该先调用一次 <code>incDesire()</code>。否则，因为初始任务计数为0，异步任务是多线程执行的，可能子任务还在执行中，逻辑线程就已经检测到任务计数为0而错误认为任务已经完成了。</p>
+<p>经过上述这些做法，消息收发、业务逻辑和数据存取实现了完全异步化，不再存在阻塞点。需要说明的是，异步任务并非是完美的，异步越多，响应延迟越大。高并发、低延时、易扩展，是一个需要综合权衡的目标。</p>
+<p>公共库仓库：<a target="_blank" rel="noopener" href="https://github.com/KaleoFeng/JMetazion.git">JMetazion</a></p>
+<p>服务器示例仓库：<a target="_blank" rel="noopener" href="https://github.com/KaleoFeng/JGameDemo.git">JGameDemo</a></p>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/%E6%B8%B8%E6%88%8F%E5%BC%80%E5%8F%91/" rel="tag"># 游戏开发</a>
+              <a href="/tags/%E6%B8%B8%E6%88%8F%E6%9C%8D%E5%8A%A1%E5%99%A8/" rel="tag"># 游戏服务器</a>
+              <a href="/tags/Java/" rel="tag"># Java</a>
+              <a href="/tags/%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B/" rel="tag"># 并发编程</a>
+              <a href="/tags/%E5%A4%9A%E7%BA%BF%E7%A8%8B/" rel="tag"># 多线程</a>
+              <a href="/tags/%E5%BC%82%E6%AD%A5%E4%BB%BB%E5%8A%A1/" rel="tag"># 异步任务</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2015/08/19/2015-08-19/" rel="prev" title="Java游戏服务器-Netty自动重连与会话管理">
+                  <i class="fa fa-angle-left"></i> Java游戏服务器-Netty自动重连与会话管理
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2015/10/08/2015-10-08/" rel="next" title="Java游戏服务器-数据库表存取封装">
+                  Java游戏服务器-数据库表存取封装 <i class="fa fa-angle-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2023</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">Kaleo Feng</span>
+  </div>
+  <div class="powered-by">由 <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a> 强力驱动
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="返回顶部">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous"></script>
+<script src="/js/comments.js"></script><script src="/js/utils.js"></script><script src="/js/motion.js"></script><script src="/js/schemes/muse.js"></script><script src="/js/next-boot.js"></script>
+
+  
+
+
+
+
+
+
+  
+
+
+
+
+
+</body>
+</html>

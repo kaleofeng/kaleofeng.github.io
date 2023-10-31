@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 6.3.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" integrity="sha256-CTSx/A06dm1B063156EVh15m6Y67pAjZZaQc89LLSrU=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"qilu.me","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.18.2","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":{"enable":false,"style":null},"fold":{"enable":false,"height":500},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"prism":false,"i18n":{"placeholder":"搜索...","empty":"没有找到任何搜索结果：${query}","hits_time":"找到 ${hits} 个搜索结果（用时 ${time} 毫秒）","hits":"找到 ${hits} 个搜索结果"}}</script><script src="/js/config.js"></script>
+
+    <meta name="description" content="网络层是TCP&#x2F;IP层次模型的第二层，主要功能是路径选择、拥塞控制和网际互连。IP协议是网络层最主要的协议，提供路由功能，并对传输层的数据进行重新组装，以适应不同网络对数据包大小的要求，实现两个节点间的通信。协议有IPv4和IPv6两个版本，现在最通用的是IPv4。 IP和链路层之间传送的数据单元被称作分组，分组既可以是一个IP数据报，也可以是数据报的一个分片。封装IP分组的一个过程就是">
+<meta property="og:type" content="article">
+<meta property="og:title" content="网络编程之TCP&#x2F;IP协议族-网络层IP协议">
+<meta property="og:url" content="https://qilu.me/2014/06/21/2014-06-21/index.html">
+<meta property="og:site_name" content="樂只君子">
+<meta property="og:description" content="网络层是TCP&#x2F;IP层次模型的第二层，主要功能是路径选择、拥塞控制和网际互连。IP协议是网络层最主要的协议，提供路由功能，并对传输层的数据进行重新组装，以适应不同网络对数据包大小的要求，实现两个节点间的通信。协议有IPv4和IPv6两个版本，现在最通用的是IPv4。 IP和链路层之间传送的数据单元被称作分组，分组既可以是一个IP数据报，也可以是数据报的一个分片。封装IP分组的一个过程就是">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://qilu.me/2014-06-21/ip.png">
+<meta property="og:image" content="https://qilu.me/2014-06-21/tcpdump_sync_and_ack.png">
+<meta property="article:published_time" content="2014-06-21T09:00:00.000Z">
+<meta property="article:modified_time" content="2022-09-18T03:53:03.020Z">
+<meta property="article:author" content="Kaleo Feng">
+<meta property="article:tag" content="TCPIP">
+<meta property="article:tag" content="网络编程">
+<meta property="article:tag" content="IP">
+<meta property="article:tag" content="网络层">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://qilu.me/2014-06-21/ip.png">
+
+
+<link rel="canonical" href="https://qilu.me/2014/06/21/2014-06-21/">
+
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh-CN","comments":true,"permalink":"https://qilu.me/2014/06/21/2014-06-21/","path":"2014/06/21/2014-06-21/","title":"网络编程之TCP/IP协议族-网络层IP协议"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>网络编程之TCP/IP协议族-网络层IP协议 | 樂只君子</title>
+  
+
+
+
+
+
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">樂只君子</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">起舞弄清影</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="搜索" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a></li>
+  </ul>
+</nav>
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-overview-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Kaleo Feng</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">48</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">4</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">99</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://qilu.me/2014/06/21/2014-06-21/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Kaleo Feng">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="樂只君子">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="网络编程之TCP/IP协议族-网络层IP协议 | 樂只君子">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          网络编程之TCP/IP协议族-网络层IP协议
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">发表于</span>
+
+      <time title="创建时间：2014-06-21 17:00:00" itemprop="dateCreated datePublished" datetime="2014-06-21T17:00:00+08:00">2014-06-21</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">分类于</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/Lore/" itemprop="url" rel="index"><span itemprop="name">Lore</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><p>网络层是TCP&#x2F;IP层次模型的第二层，主要功能是路径选择、拥塞控制和网际互连。IP协议是网络层最主要的协议，提供路由功能，并对传输层的数据进行重新组装，以适应不同网络对数据包大小的要求，实现两个节点间的通信。协议有IPv4和IPv6两个版本，现在最通用的是IPv4。</p>
+<p>IP和链路层之间传送的数据单元被称作分组，分组既可以是一个IP数据报，也可以是数据报的一个分片。封装IP分组的一个过程就是添加IP首部，其格式如下（图片来自网络）。<br><img src="/2014-06-21/ip.png" alt="Image Title"></p>
+<ul>
+<li><p>版本：4位，IP协议版本。值一般为4，即采用IPv4版本。</p>
+</li>
+<li><p>首部长度：4位，IP首部长度，4个字节为单位。首部包含可选项，是变长数据，取值范围为5-15，能表示20字节-60字节。</p>
+</li>
+<li><p>DSCP：6位，区分服务代码点。</p>
+</li>
+<li><p>ECN：2位，显式拥塞通知。</p>
+</li>
+<li><p>总长度：2个字节，IP分组的长度。</p>
+</li>
+<li><p>标识：2个字节，IP分组标识。由于IP是无连接服务，标识并非序号。当IP数据报长度大于MTU时，会进行分片，同一数据报的所有分片标识相同，以在接收端重新组装成一个数据报。</p>
+</li>
+<li><p>标志：3位。第1位未使用。第2位DF禁止分片，需要分片的数据报会被丢弃，并发送一个ICMP差错报文给起始端。第3位MF更多分片，当对数据报进行分片时，最后一个分片置0，其余分片置1。</p>
+</li>
+<li><p>片偏移：13位，8个字节为单位。表示数据报被分片后，该片数据在原数据报中的相对位置。</p>
+</li>
+<li><p>TTL：1个字节，IP分组在网络上的存活时间。每经过一个路由器该值减1，为0时则丢弃。</p>
+</li>
+<li><p>协议类型：1个字节，上层协议类型。常见值如1（ICMP）、6（TCP）、17（UDP）等。</p>
+</li>
+<li><p>首部校验和：2个字节，只计算首部。</p>
+</li>
+<li><p>源IP地址：4个字节，发送端IP地址。</p>
+</li>
+<li><p>目的IP地址：4个字节，接收端IP地址。</p>
+</li>
+<li><p>可选字段：0-40字节，使用较少，暂不赘述。</p>
+</li>
+</ul>
+<p>依然以tcpdump捕获到的TCP三次握手数据包为例。<br><img src="/2014-06-21/tcpdump_sync_and_ack.png" alt="Image Title"></p>
+<p>观察第一个数据包的前20字节。</p>
+<ul>
+<li><p>4500：4表示IPv4版本，5表示首部长度为20（5*4）字节，没有可选项，00表示无区分服务和显式拥塞通知。</p>
+</li>
+<li><p>0034：表示IP分组长度为52（3*16+4）字节，则数据域长度为32字节。</p>
+</li>
+<li><p>1150：标识。</p>
+</li>
+<li><p>4000：前3位010，DF置1表示禁止分片，后13位为0表示片偏移为0。</p>
+</li>
+<li><p>8006：80表示TTL为128（8*16），06表示上层协议是TCP。</p>
+</li>
+<li><p>6136：检验和。仅计算首部。</p>
+</li>
+<li><p>c0a8 0305：源IP地址是192.168.3.5。</p>
+</li>
+<li><p>c0a8 03e8：目的IP地址是192.168.3.232。</p>
+</li>
+</ul>
+<p><a href="/2014/06/08/2014-06-08">上篇</a>文章中提到，采用Ethernet II的以太网MTU是1500字节，所以IP分组长度不能大于1500字节。IP首部20字节，则IP数据域长度最大1480字节。如果传输层数据包长度大于此值，则需要分片。</p>
+<p>同时，标准要求主机可以接收最小576字节的IP数据报。因此，如果数据需要传给未知的主机或经过未知的网络，并希望不会因为大小的原因而被丢弃，那么IP分组长度不应该大于576字节，否则需要分片。</p>
+<p>分片过程中，协议层会对IP数据报进行合适的分割，使每片都不大于MTU。IP数据报的标识会被复制到每个分片中，最后一个分片的MF置0，其他分片置1，片偏移里保存每个分片数据相对于原数据以8个字节为单位的偏移值，这意味着除最后一个分片外，其他分片数据长度都是8字节的整数倍。</p>
+<p>分片不只发生在发送端，在传输过程中，IP分组也可能被重新分片，由DF标志位决定。</p>
+<p>接收端收到IP分片时，会检查MF标志位是否是0即最后一个分片，如果是，则根据分片偏移量计算各个分片在原始数据报中的位置并进行重组，否则等待所有分片到达后再进行重组。</p>
+<p>不难看出，分片可能带来以下问题。</p>
+<ul>
+<li><p>资源消耗：分片和重组会消耗一定的CPU等资源，如果存在大量的分片报文的话，可能会造成较为严重的资源消耗；分片对接收方内存资源的消耗较多，因为接收端要为接收到的每个分片分配内存空间，以便于最后一个分片到达后完成重组。</p>
+</li>
+<li><p>重传问题：如果某个分片在网络传输过程中丢失，那么接收端将无法完成重组，如果应用进程要求重传的话，发送端必须重传整个数据报的所有分片而不是仅重传被丢弃的那个，这会给端系统和网络带来额外的消耗。</p>
+</li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/TCPIP/" rel="tag"># TCPIP</a>
+              <a href="/tags/%E7%BD%91%E7%BB%9C%E7%BC%96%E7%A8%8B/" rel="tag"># 网络编程</a>
+              <a href="/tags/IP/" rel="tag"># IP</a>
+              <a href="/tags/%E7%BD%91%E7%BB%9C%E5%B1%82/" rel="tag"># 网络层</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2014/06/08/2014-06-08/" rel="prev" title="网络编程之TCP/IP协议族-链路层Ethernet II和802.2/802.3 SNAP协议">
+                  <i class="fa fa-angle-left"></i> 网络编程之TCP/IP协议族-链路层Ethernet II和802.2/802.3 SNAP协议
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2014/07/04/2014-07-04/" rel="next" title="网络编程之TCP/IP协议族-传输层TCP协议（一）">
+                  网络编程之TCP/IP协议族-传输层TCP协议（一） <i class="fa fa-angle-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2023</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">Kaleo Feng</span>
+  </div>
+  <div class="powered-by">由 <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a> 强力驱动
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="返回顶部">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous"></script>
+<script src="/js/comments.js"></script><script src="/js/utils.js"></script><script src="/js/motion.js"></script><script src="/js/schemes/muse.js"></script><script src="/js/next-boot.js"></script>
+
+  
+
+
+
+
+
+
+  
+
+
+
+
+
+</body>
+</html>

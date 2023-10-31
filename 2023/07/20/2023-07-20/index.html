@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 6.3.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" integrity="sha256-CTSx/A06dm1B063156EVh15m6Y67pAjZZaQc89LLSrU=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"qilu.me","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.18.2","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":{"enable":false,"style":null},"fold":{"enable":false,"height":500},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"prism":false,"i18n":{"placeholder":"搜索...","empty":"没有找到任何搜索结果：${query}","hits_time":"找到 ${hits} 个搜索结果（用时 ${time} 毫秒）","hits":"找到 ${hits} 个搜索结果"}}</script><script src="/js/config.js"></script>
+
+    <meta name="description" content="系统平台环境系统：Ubuntu 20.04 设置NVIDIA Docker支持安装 nvidia-container-toolkit 12345distribution&#x3D;$(. &#x2F;etc&#x2F;os-release;echo $ID$VERSION_ID)curl -s -L https:&#x2F;&#x2F;nvidia.github.io&#x2F;nvidia-docker&#x2F;gpgkey | sudo apt-key add">
+<meta property="og:type" content="article">
+<meta property="og:title" content="大语言模型 ChatGLM 微调环境搭建（Docker版）">
+<meta property="og:url" content="https://qilu.me/2023/07/20/2023-07-20/index.html">
+<meta property="og:site_name" content="樂只君子">
+<meta property="og:description" content="系统平台环境系统：Ubuntu 20.04 设置NVIDIA Docker支持安装 nvidia-container-toolkit 12345distribution&#x3D;$(. &#x2F;etc&#x2F;os-release;echo $ID$VERSION_ID)curl -s -L https:&#x2F;&#x2F;nvidia.github.io&#x2F;nvidia-docker&#x2F;gpgkey | sudo apt-key add">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2023-07-20T13:00:00.000Z">
+<meta property="article:modified_time" content="2023-10-31T16:20:59.377Z">
+<meta property="article:author" content="Kaleo Feng">
+<meta property="article:tag" content="LLM">
+<meta property="article:tag" content="大语言模型">
+<meta property="article:tag" content="ChatGLM">
+<meta name="twitter:card" content="summary">
+
+
+<link rel="canonical" href="https://qilu.me/2023/07/20/2023-07-20/">
+
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh-CN","comments":true,"permalink":"https://qilu.me/2023/07/20/2023-07-20/","path":"2023/07/20/2023-07-20/","title":"大语言模型 ChatGLM 微调环境搭建（Docker版）"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>大语言模型 ChatGLM 微调环境搭建（Docker版） | 樂只君子</title>
+  
+
+
+
+
+
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">樂只君子</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">起舞弄清影</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="搜索" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a></li>
+  </ul>
+</nav>
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%B3%BB%E7%BB%9F%E5%B9%B3%E5%8F%B0"><span class="nav-number">1.</span> <span class="nav-text">系统平台</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%8E%AF%E5%A2%83"><span class="nav-number">1.1.</span> <span class="nav-text">环境</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%AE%BE%E7%BD%AE"><span class="nav-number">1.2.</span> <span class="nav-text">设置</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#NVIDIA-Docker%E6%94%AF%E6%8C%81"><span class="nav-number">1.2.1.</span> <span class="nav-text">NVIDIA Docker支持</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#Docker%E8%BD%AF%E4%BB%B6"><span class="nav-number">1.2.2.</span> <span class="nav-text">Docker软件</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%8F%82%E8%80%83%E8%B5%84%E6%96%99"><span class="nav-number">1.3.</span> <span class="nav-text">参考资料</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Docker%E5%AE%B9%E5%99%A8"><span class="nav-number">2.</span> <span class="nav-text">Docker容器</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%87%AA%E5%AE%9A%E4%B9%89%E9%95%9C%E5%83%8F"><span class="nav-number">2.1.</span> <span class="nav-text">自定义镜像</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%9E%84%E5%BB%BA"><span class="nav-number">2.1.1.</span> <span class="nav-text">构建</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E4%BD%BF%E7%94%A8"><span class="nav-number">2.1.2.</span> <span class="nav-text">使用</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%BA%94%E7%94%A8%E9%83%A8%E7%BD%B2"><span class="nav-number">3.</span> <span class="nav-text">应用部署</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%87%86%E5%A4%87%E5%B7%A5%E4%BD%9C"><span class="nav-number">3.1.</span> <span class="nav-text">准备工作</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%B7%A5%E7%A8%8B%E5%BA%94%E7%94%A8"><span class="nav-number">3.2.</span> <span class="nav-text">工程应用</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%87%86%E5%A4%87%E5%B7%A5%E7%A8%8B"><span class="nav-number">3.2.1.</span> <span class="nav-text">准备工程</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%AE%89%E8%A3%85%E4%BE%9D%E8%B5%96"><span class="nav-number">3.2.2.</span> <span class="nav-text">安装依赖</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%BF%9B%E8%A1%8C%E8%AE%AD%E7%BB%83"><span class="nav-number">3.3.</span> <span class="nav-text">进行训练</span></a></li></ol></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Kaleo Feng</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">48</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">4</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">99</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://qilu.me/2023/07/20/2023-07-20/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Kaleo Feng">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="樂只君子">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="大语言模型 ChatGLM 微调环境搭建（Docker版） | 樂只君子">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          大语言模型 ChatGLM 微调环境搭建（Docker版）
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">发表于</span>
+
+      <time title="创建时间：2023-07-20 21:00:00" itemprop="dateCreated datePublished" datetime="2023-07-20T21:00:00+08:00">2023-07-20</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">分类于</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/Tech/" itemprop="url" rel="index"><span itemprop="name">Tech</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><h2 id="系统平台"><a href="#系统平台" class="headerlink" title="系统平台"></a>系统平台</h2><h3 id="环境"><a href="#环境" class="headerlink" title="环境"></a>环境</h3><p>系统：Ubuntu 20.04</p>
+<h3 id="设置"><a href="#设置" class="headerlink" title="设置"></a>设置</h3><h4 id="NVIDIA-Docker支持"><a href="#NVIDIA-Docker支持" class="headerlink" title="NVIDIA Docker支持"></a>NVIDIA Docker支持</h4><p>安装 <code>nvidia-container-toolkit</code></p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">distribution=$(. /etc/os-release;echo $ID$VERSION_ID)</span><br><span class="line">curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo apt-key add -</span><br><span class="line">curl -s -L https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.list | sudo tee /etc/apt/sources.list.d/nvidia-docker.list</span><br><span class="line">sudo apt-get update</span><br><span class="line">sudo apt-get install nvidia-container-toolkit -y</span><br></pre></td></tr></table></figure>
+
+<h4 id="Docker软件"><a href="#Docker软件" class="headerlink" title="Docker软件"></a>Docker软件</h4><p>安装 Docker</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo apt-get install docker.io -y</span><br></pre></td></tr></table></figure>
+
+<p>给予当前用户 docker 权限</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">sudo gpasswd -a $USER docker</span><br><span class="line">groups</span><br></pre></td></tr></table></figure>
+
+<h3 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料"></a>参考资料</h3><p><a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/580156606">如何在Docker中搭建CUDA &amp; CUDNN 开发环境</a></p>
+<p><a target="_blank" rel="noopener" href="https://mdnice.com/writing/92d10f493d794825b447a48ea5a9ab3a">Docker容器如何优雅使用NVIDIA GPU</a></p>
+<h2 id="Docker容器"><a href="#Docker容器" class="headerlink" title="Docker容器"></a>Docker容器</h2><h3 id="自定义镜像"><a href="#自定义镜像" class="headerlink" title="自定义镜像"></a>自定义镜像</h3><h4 id="构建"><a href="#构建" class="headerlink" title="构建"></a>构建</h4><p>Dockerfile</p>
+<figure class="highlight docker"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">FROM</span> nvidia/cuda:<span class="number">12.0</span>.<span class="number">1</span>-cudnn8-devel-ubuntu20.<span class="number">04</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">LABEL</span><span class="language-bash"> maintainer=<span class="string">&quot;KaleoFeng&quot;</span> \</span></span><br><span class="line"><span class="language-bash">  version=<span class="string">&quot;1.0-SNAPSHOT&quot;</span> \</span></span><br><span class="line"><span class="language-bash">  description=<span class="string">&quot;Nvidia CUDA, cuDNN and PyTorch&quot;</span></span></span><br><span class="line"></span><br><span class="line"><span class="keyword">USER</span> root</span><br><span class="line"></span><br><span class="line"><span class="keyword">RUN</span><span class="language-bash"> apt update; \</span></span><br><span class="line"><span class="language-bash">  apt-get install python3-pip -y; \</span></span><br><span class="line"><span class="language-bash">  pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">VOLUME</span><span class="language-bash"> [ <span class="string">&quot;/data&quot;</span> ]</span></span><br></pre></td></tr></table></figure>
+
+<p>环境说明:</p>
+<ul>
+<li>CUDA &amp; CUDNN v12.0</li>
+<li>Python v3.8.10</li>
+<li>PyTorch v2.1.0 适配 cu118</li>
+</ul>
+<h4 id="使用"><a href="#使用" class="headerlink" title="使用"></a>使用</h4><p>拉取镜像</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">docker pull kaleofeng/cudatorch:1.0-SNAPSHOT</span><br></pre></td></tr></table></figure>
+
+<p>运行容器</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">docker run \</span><br><span class="line">  -it \</span><br><span class="line">  --name cudatorch \</span><br><span class="line">  --volume $PWD/data:/data \</span><br><span class="line">  --detach \</span><br><span class="line">  --gpus all \</span><br><span class="line">  kaleofeng/cudatorch:1.0-SNAPSHOT</span><br></pre></td></tr></table></figure>
+
+<p>赋予当前用户 <code>data</code> 目录权限</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo chown -R $USER data</span><br></pre></td></tr></table></figure>
+
+<p>进入容器</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">docker exec -it cudatorch bash</span><br></pre></td></tr></table></figure>
+
+<p>执行命令</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">nvidia-smi</span><br></pre></td></tr></table></figure>
+
+<p>输出</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">root@766d2bc6e192:/# nvidia-smi</span><br><span class="line">Fri Jul 21 03:30:07 2023</span><br><span class="line">+-----------------------------------------------------------------------------+</span><br><span class="line">| NVIDIA-SMI 525.105.17   Driver Version: 525.105.17   CUDA Version: 12.0     |</span><br><span class="line">|-------------------------------+----------------------+----------------------+</span><br><span class="line">| GPU  Name        Persistence-M| Bus-Id        Disp.A | Volatile Uncorr. ECC |</span><br><span class="line">| Fan  Temp  Perf  Pwr:Usage/Cap|         Memory-Usage | GPU-Util  Compute M. |</span><br><span class="line">|                               |                      |               MIG M. |</span><br><span class="line">|===============================+======================+======================|</span><br><span class="line">|   0  Tesla T4            On   | 00000000:00:08.0 Off |                    0 |</span><br><span class="line">| N/A   31C    P8    11W /  70W |      2MiB / 15360MiB |      0%      Default |</span><br><span class="line">|                               |                      |                  N/A |</span><br><span class="line">+-------------------------------+----------------------+----------------------+</span><br><span class="line"></span><br><span class="line">+-----------------------------------------------------------------------------+</span><br><span class="line">| Processes:                                                                  |</span><br><span class="line">|  GPU   GI   CI        PID   Type   Process name                  GPU Memory |</span><br><span class="line">|        ID   ID                                                   Usage      |</span><br><span class="line">|=============================================================================|</span><br><span class="line">|  No running processes found                                                 |</span><br><span class="line">+-----------------------------------------------------------------------------+</span><br></pre></td></tr></table></figure>
+
+<p>执行命令</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">nvcc -V</span><br></pre></td></tr></table></figure>
+
+<p>输出</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">root@766d2bc6e192:/# nvcc -V</span><br><span class="line">nvcc: NVIDIA (R) Cuda compiler driver</span><br><span class="line">Copyright (c) 2005-2023 NVIDIA Corporation</span><br><span class="line">Built on Fri_Jan__6_16:45:21_PST_2023</span><br><span class="line">Cuda compilation tools, release 12.0, V12.0.140</span><br><span class="line">Build cuda_12.0.r12.0/compiler.32267302_0</span><br></pre></td></tr></table></figure>
+
+<p>测试是否 GPU 版本</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">python3 -c &quot;import torch; print(torch.cuda.is_available())&quot;</span><br></pre></td></tr></table></figure>
+
+<p>输出</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">root@766d2bc6e192:/# python3 -c &quot;import torch; print(torch.cuda.is_available())&quot;</span><br><span class="line">True</span><br></pre></td></tr></table></figure>
+
+<p>查看环境信息</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">python3 -m torch.utils.collect_env</span><br></pre></td></tr></table></figure>
+
+<h2 id="应用部署"><a href="#应用部署" class="headerlink" title="应用部署"></a>应用部署</h2><h3 id="准备工作"><a href="#准备工作" class="headerlink" title="准备工作"></a>准备工作</h3><p>安装 Git LFS</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">sudo apt-get install git-lfs -y</span><br><span class="line">git lfs install</span><br></pre></td></tr></table></figure>
+
+<h3 id="工程应用"><a href="#工程应用" class="headerlink" title="工程应用"></a>工程应用</h3><h4 id="准备工程"><a href="#准备工程" class="headerlink" title="准备工程"></a>准备工程</h4><p>上传工程</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">cd data</span><br><span class="line">rz -bey</span><br><span class="line">unzip ChatGLM2-6B-modified.zip -d ChatGLM2-6B</span><br><span class="line">cd ChatGLM2-6B</span><br></pre></td></tr></table></figure>
+
+<p>下载模型</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">mkdir models</span><br><span class="line">cd models</span><br><span class="line">git clone https://huggingface.co/THUDM/chatglm2-6b</span><br><span class="line">cd ..</span><br></pre></td></tr></table></figure>
+
+<h4 id="安装依赖"><a href="#安装依赖" class="headerlink" title="安装依赖"></a>安装依赖</h4><p>进入容器</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">docker exec -it cudatorch bash</span><br></pre></td></tr></table></figure>
+
+<p>进入工程</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">cd /data/ChatGLM2-6B</span><br></pre></td></tr></table></figure>
+
+<p>ChatGLM 基础依赖</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">pip3 install -r requirements.txt</span><br><span class="line">pip3 install --upgrade typing-extensions</span><br><span class="line">pip3 install starlette==0.27.0</span><br></pre></td></tr></table></figure>
+
+<p>P-Tuning 所需</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">pip3 install datasets</span><br><span class="line">pip3 install jieba</span><br><span class="line">pip3 install rouge_chinese</span><br><span class="line">pip3 install nltk</span><br></pre></td></tr></table></figure>
+
+<p>全参数微调所需</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">apt-get install libaio-dev -y</span><br><span class="line">pip3 install deepspeed</span><br></pre></td></tr></table></figure>
+
+<p>检查环境</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ds_report</span><br></pre></td></tr></table></figure>
+
+<p>输出</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><span class="line">oot@766d2bc6e192:/data/ChatGLM2-6B# ds_report</span><br><span class="line">[2023-07-21 03:57:31,728] [INFO] [real_accelerator.py:133:get_accelerator] Setting ds_accelerator to cuda (auto detect)</span><br><span class="line">--------------------------------------------------</span><br><span class="line">DeepSpeed C++/CUDA extension op report</span><br><span class="line">--------------------------------------------------</span><br><span class="line">NOTE: Ops not installed will be just-in-time (JIT) compiled at</span><br><span class="line">      runtime if needed. Op compatibility means that your system</span><br><span class="line">      meet the required dependencies to JIT install the op.</span><br><span class="line">--------------------------------------------------</span><br><span class="line">JIT compiled ops requires ninja</span><br><span class="line">ninja .................. [OKAY]</span><br><span class="line">--------------------------------------------------</span><br><span class="line">op name ................ installed .. compatible</span><br><span class="line">--------------------------------------------------</span><br><span class="line">async_io ............... [NO] ....... [OKAY]</span><br><span class="line">cpu_adagrad ............ [NO] ....... [OKAY]</span><br><span class="line">cpu_adam ............... [NO] ....... [OKAY]</span><br><span class="line">fused_adam ............. [NO] ....... [OKAY]</span><br><span class="line">fused_lamb ............. [NO] ....... [OKAY]</span><br><span class="line">quantizer .............. [NO] ....... [OKAY]</span><br><span class="line">random_ltd ............. [NO] ....... [OKAY]</span><br><span class="line"> [WARNING]  sparse_attn requires a torch version &gt;= 1.5 and &lt; 2.0 but detected 2.0</span><br><span class="line"> [WARNING]  using untested triton version (2.0.0), only 1.0.0 is known to be compatible</span><br><span class="line">sparse_attn ............ [NO] ....... [NO]</span><br><span class="line">spatial_inference ...... [NO] ....... [OKAY]</span><br><span class="line">transformer ............ [NO] ....... [OKAY]</span><br><span class="line">stochastic_transformer . [NO] ....... [OKAY]</span><br><span class="line">transformer_inference .. [NO] ....... [OKAY]</span><br><span class="line">--------------------------------------------------</span><br><span class="line">DeepSpeed general environment info:</span><br><span class="line">torch install path ............... [&#x27;/usr/local/lib/python3.8/dist-packages/torch&#x27;]</span><br><span class="line">torch version .................... 2.0.1+cu118</span><br><span class="line">deepspeed install path ........... [&#x27;/usr/local/lib/python3.8/dist-packages/deepspeed&#x27;]</span><br><span class="line">deepspeed info ................... 0.10.0, unknown, unknown</span><br><span class="line">torch cuda version ............... 11.8</span><br><span class="line">torch hip version ................ None</span><br><span class="line">nvcc version ..................... 12.0</span><br><span class="line">deepspeed wheel compiled w. ...... torch 2.0, cuda 11.8</span><br></pre></td></tr></table></figure>
+
+<h3 id="进行训练"><a href="#进行训练" class="headerlink" title="进行训练"></a>进行训练</h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">cd ptuning/</span><br><span class="line">chmod +x ds_train_finetune.sh</span><br><span class="line">./ds_train_finetune.sh</span><br></pre></td></tr></table></figure>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/LLM/" rel="tag"># LLM</a>
+              <a href="/tags/%E5%A4%A7%E8%AF%AD%E8%A8%80%E6%A8%A1%E5%9E%8B/" rel="tag"># 大语言模型</a>
+              <a href="/tags/ChatGLM/" rel="tag"># ChatGLM</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2023/04/08/2023-04-08/" rel="prev" title="UE4构建时未定义的引用的链接问题">
+                  <i class="fa fa-angle-left"></i> UE4构建时未定义的引用的链接问题
+                </a>
+            </div>
+            <div class="post-nav-item">
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2023</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">Kaleo Feng</span>
+  </div>
+  <div class="powered-by">由 <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a> 强力驱动
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="返回顶部">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous"></script>
+<script src="/js/comments.js"></script><script src="/js/utils.js"></script><script src="/js/motion.js"></script><script src="/js/schemes/muse.js"></script><script src="/js/next-boot.js"></script>
+
+  
+
+
+
+
+
+
+  
+
+
+
+
+
+</body>
+</html>

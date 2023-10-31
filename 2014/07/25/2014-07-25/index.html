@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 6.3.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" integrity="sha256-CTSx/A06dm1B063156EVh15m6Y67pAjZZaQc89LLSrU=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"qilu.me","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.18.2","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":{"enable":false,"style":null},"fold":{"enable":false,"height":500},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"prism":false,"i18n":{"placeholder":"搜索...","empty":"没有找到任何搜索结果：${query}","hits_time":"找到 ${hits} 个搜索结果（用时 ${time} 毫秒）","hits":"找到 ${hits} 个搜索结果"}}</script><script src="/js/config.js"></script>
+
+    <meta name="description" content="TCP提供面向连接的、可靠的、全双工的字节流传输服务。 面向连接意味着两个TCP应用程序在彼此传输数据之前必须先建立一个TCP连接，传输结束后一般也会断开连接。TCP连接通过三次握手建立，四次挥手断开。 TCP通过以下方式保证可靠性。  TCP分段。区别于UDP，UDP将应用程序封装成一个数据报，长度保持不变。  重传定时器。每发出一个报文段，就启动一个定时器，等待接收端确认。如果没有及时收到确认">
+<meta property="og:type" content="article">
+<meta property="og:title" content="网络编程之TCP&#x2F;IP协议族-传输层TCP协议（二）">
+<meta property="og:url" content="https://qilu.me/2014/07/25/2014-07-25/index.html">
+<meta property="og:site_name" content="樂只君子">
+<meta property="og:description" content="TCP提供面向连接的、可靠的、全双工的字节流传输服务。 面向连接意味着两个TCP应用程序在彼此传输数据之前必须先建立一个TCP连接，传输结束后一般也会断开连接。TCP连接通过三次握手建立，四次挥手断开。 TCP通过以下方式保证可靠性。  TCP分段。区别于UDP，UDP将应用程序封装成一个数据报，长度保持不变。  重传定时器。每发出一个报文段，就启动一个定时器，等待接收端确认。如果没有及时收到确认">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2014-07-25T08:00:00.000Z">
+<meta property="article:modified_time" content="2022-09-18T03:53:03.023Z">
+<meta property="article:author" content="Kaleo Feng">
+<meta property="article:tag" content="TCPIP">
+<meta property="article:tag" content="网络编程">
+<meta property="article:tag" content="TCP">
+<meta property="article:tag" content="传输层">
+<meta name="twitter:card" content="summary">
+
+
+<link rel="canonical" href="https://qilu.me/2014/07/25/2014-07-25/">
+
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh-CN","comments":true,"permalink":"https://qilu.me/2014/07/25/2014-07-25/","path":"2014/07/25/2014-07-25/","title":"网络编程之TCP/IP协议族-传输层TCP协议（二）"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>网络编程之TCP/IP协议族-传输层TCP协议（二） | 樂只君子</title>
+  
+
+
+
+
+
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">樂只君子</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">起舞弄清影</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="搜索" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a></li>
+  </ul>
+</nav>
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-overview-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Kaleo Feng</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">48</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">4</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">99</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://qilu.me/2014/07/25/2014-07-25/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Kaleo Feng">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="樂只君子">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="网络编程之TCP/IP协议族-传输层TCP协议（二） | 樂只君子">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          网络编程之TCP/IP协议族-传输层TCP协议（二）
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">发表于</span>
+
+      <time title="创建时间：2014-07-25 16:00:00" itemprop="dateCreated datePublished" datetime="2014-07-25T16:00:00+08:00">2014-07-25</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">分类于</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/Lore/" itemprop="url" rel="index"><span itemprop="name">Lore</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><p>TCP提供面向连接的、可靠的、全双工的字节流传输服务。</p>
+<p>面向连接意味着两个TCP应用程序在彼此传输数据之前必须先建立一个TCP连接，传输结束后一般也会断开连接。TCP连接通过三次握手建立，四次挥手断开。</p>
+<p>TCP通过以下方式保证可靠性。</p>
+<ul>
+<li><p>TCP分段。区别于UDP，UDP将应用程序封装成一个数据报，长度保持不变。</p>
+</li>
+<li><p>重传定时器。每发出一个报文段，就启动一个定时器，等待接收端确认。如果没有及时收到确认，会重发这个报文段。</p>
+</li>
+<li><p>TCP收到另一端数据，将发送一个ACK确认。确认不是立即发送，通常将推迟几分这一秒，以捎带确认，这是通过延迟ACK定时器实现的。TCP不对ACK报文段进行确认，TCP只确认那些包含有数据的ACK报文段。</p>
+</li>
+<li><p>检查和。检测数据在传输过程中是否发生变化，如果有差错，TCP将丢弃并不确认这个报文段。</p>
+</li>
+<li><p>TCP重排序。IP分组的到达可能会失序，因此TCP报文段的到达也可能会失序。TCP重排序将保证收到的数据以正确的顺序交给应用层。</p>
+</li>
+<li><p>TCP丢弃重复数据。重复数据的原因是IP分组会发生重复。</p>
+</li>
+<li><p>TCP流量控制。使用滑动窗口防止较快主机使较慢主机的缓冲区溢出。</p>
+</li>
+</ul>
+<p>全双工是指发送数据的同时也能接收数据，可理解为有两个方向相反的独立通道。</p>
+<p>字节流服务是指TCP连接传输8bit字节构成的字节流，不在字节流中插入记录标识符，同时对字节流的内容也不作任何解释。</p>
+<p>定时器在TCP可靠传输的过程中起着举足轻重的作用，每个TCP连接有以下七个定时器。</p>
+<ul>
+<li><p>连接建立定时器：在发送SYN报文段建立一个新连接时启动。如果没有在75s内收到响应，连接建立将终止。</p>
+</li>
+<li><p>重传定时器：用于当希望收到另一端的确认。</p>
+<p>  为了控制丢失的报文段或丢弃的报文段，也就是对报文段确认的等待时间。当TCP发送报文段时，就创建这个特定报文段的重传定时器。可能发生两种情况：若在定时器超时之前收到对报文段的确认，则撤销定时器；若在收到确认之前定时器超时，则重传该报文，并把定时器复位。重传间隔与RTT（连接的往返时间）有关，但有最小值，采用指数退避策略。</p>
+<p>  重传定时器与拥塞控制有关。拥塞控制通过慢启动、拥塞避免和快速重传与快速恢复算法来实现。慢启动为发送端的TCP增加了另一个窗口即拥塞窗口。发送端取拥塞窗口和滑动窗口中的最小值作为发送上限。拥塞窗口是发送端使用的流量控制，而滑动窗口则是接收端使用的流量控制。拥塞窗口以报文段为单位，初始为1个报文段大小，是一种指数增加的关系。</p>
+<p>  TCP超时并重传时，不一定要重传同样的报文段。相反，TCP允许进行重新分组而发送一个较大的报文段，这有助于提高性能。</p>
+</li>
+<li><p>延迟ACK定时器：在TCP收到必须被确认但无需马上发出确认的数据时，不会立即确认，而是等待200ms后再发送确认。如果在这200ms内，有数据要在该连接上发送，延迟的ACK就可以随着数据一起发往对端，这被称为捎带确认。</p>
+</li>
+<li><p>坚持定时器：使窗口大小信息保持不断流动，即使另一端关闭了其接收窗口。</p>
+<p>  TCP通过让接收端指明希望从发送端接收的数据字节数(即窗口大小)来进行流量控制。如果窗口大小为零，将阻止发送方传送数据，直到窗口变为非零为止。</p>
+<p>  TCP发送端收到接收端的零窗口大小报文时，就启动一个定时器。定时器到期时向接收端查询窗口是否已经增大，如果得到非零的窗口就重新开始发送数据，如果得到零窗口就再开一个新的定时器准备下一次查询。这些从发送端发出的报文段称为窗口探查。查询间隔初始为重传时间，采用指数退避，直到到达60s，之后每60s探查一次，持续到窗口被打开或连接终止。</p>
+<p>  TCP的窗口协议，会引起一种通常叫做糊涂窗口综合症的问题。具体表现为，当接收端通告一个小的非零窗口时，发送端立刻发送小数据给接收端并充满其缓冲区，这就会使得网络中充满小的TCP报文段，从而影响网络利用率。有多种方法来避免该问题，比如接收端不通告小窗口等，这里不详述。</p>
+</li>
+<li><p>时间等待定时器：测量一个连接处于TIME_WAIT状态的时间。</p>
+<p>  在连接终止时使用。当TCP关闭连接时，并不认为这个连接就真正关闭了，而是处于一种中间过渡状态即TIME_WAIT状态。处于这个状态的时间由时间等待定时器控制，值通常设置为报文段最大生存时间 （MSL）的两倍。这个定时器有两个作用：</p>
+<p>  一是为了测量连接处于TIME_WAIT状态的时间。这样可以让TCP再次发送最后的ACK以防止这个ACK丢失。如果丢失，另一端会重传FIN，2MSL的时间可以保证重传的FIN报文段可到达。</p>
+<p>  二是为了使得老的重复报文段在网络中消失。如果一个TCP连接在断开之前有迷途报文段尚未消失，在断开该TCP连接之后立刻重启一个相等连接(相同四元组的连接)，那么之前的迷途分节可能会到达并被新的TCP连接接收，从而造成错误的解析。为了避免这种情况，TCP规定在TIME_WAIT状态，不能启动一个相等连接。既然TIME_WAIT状态维持2MSL，这就保证了一个老连接上的报文段在新连接建立前都会消失。</p>
+</li>
+<li><p>FIN_WAIT_2定时器：当某个连接从FIN_WAIT_1状态变迁到FIN_WAIT_2状态，并且不再接收任何新数据时（意味着应用进程调用了close，而非shutdown，没有利用TCP的半关闭功能），FIN_WAIT_2定时器启动，设为10分钟。定时器超时后，重新设为75s。第二次超时后连接被关闭。这个定时器的目的是为了避免对端一直不发送FIN，连接会永远滞留在FIN_WAIT_2状态。</p>
+</li>
+<li><p>保活定时器：可检测到一个空闲连接的另一端何时崩溃或重启。</p>
+<p>  保活主要是为服务器应用程序提供的。因为TCP是面向连接的，就会出现只连接不传送数据的“半开放连接”。中间路由器可以崩溃和重启，但只要两端的主机没有被重启，则连接依然保持建立。服务器需要检测到这种连接并且在某些情况下进行释放，这就是保活定时器的作用。</p>
+<p>  每当服务器收到客户端的信息，就将保活定时器复位。保活时间根据服务器的实现不同而不同，通常设置为2小时。若服务器超过2小时还没有收到来自客户的信息，就发送探测报文段，若发送了10个探测报文段(每隔75s发送一个)还没收到响应，则终止连接。</p>
+<p>  值得一提的是，当其中一端崩溃并重新启动的情况下，如果收到该连接“前生”的保活探察，则要发送一个RST报文帮助另一端结束连接。</p>
+<p>  保活并不是TCP规范中的一部分，所以其实现是可选的。</p>
+</li>
+</ul>
+<p>TCP需要同时处理成块数据和交互数据。如果需要发送太多小数据，会影响TCP传输效率，并增加拥塞出现的可能。TCP通过上面提到的捎带确认及Nagle算法解决该问题。</p>
+<p>Nagle算法要求一个 TCP连接上最多只能有一个未被确认的未完成的微小分组（tinygram），在该微小分组的确认到达之前不能发送其他的微小分组。相反, TCP收集这些微小分组，并在确认到来时以一个报文段的方式发出去。</p>
+<p>Nagle算法会导致微小分组的时延。在一些交互实时性要求较高的场合，微小分组必须无时延地发送，可以使用TCP_NODELAY选项来关闭Nagle算法。</p>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/TCPIP/" rel="tag"># TCPIP</a>
+              <a href="/tags/%E7%BD%91%E7%BB%9C%E7%BC%96%E7%A8%8B/" rel="tag"># 网络编程</a>
+              <a href="/tags/TCP/" rel="tag"># TCP</a>
+              <a href="/tags/%E4%BC%A0%E8%BE%93%E5%B1%82/" rel="tag"># 传输层</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2014/07/04/2014-07-04/" rel="prev" title="网络编程之TCP/IP协议族-传输层TCP协议（一）">
+                  <i class="fa fa-angle-left"></i> 网络编程之TCP/IP协议族-传输层TCP协议（一）
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2014/08/07/2014-08-07/" rel="next" title="网络编程之TCP/IP协议族-传输层UDP协议">
+                  网络编程之TCP/IP协议族-传输层UDP协议 <i class="fa fa-angle-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2023</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">Kaleo Feng</span>
+  </div>
+  <div class="powered-by">由 <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a> 强力驱动
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="返回顶部">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous"></script>
+<script src="/js/comments.js"></script><script src="/js/utils.js"></script><script src="/js/motion.js"></script><script src="/js/schemes/muse.js"></script><script src="/js/next-boot.js"></script>
+
+  
+
+
+
+
+
+
+  
+
+
+
+
+
+</body>
+</html>

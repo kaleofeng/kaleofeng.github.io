@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 6.3.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" integrity="sha256-CTSx/A06dm1B063156EVh15m6Y67pAjZZaQc89LLSrU=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"qilu.me","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.18.2","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":{"enable":false,"style":null},"fold":{"enable":false,"height":500},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"prism":false,"i18n":{"placeholder":"搜索...","empty":"没有找到任何搜索结果：${query}","hits_time":"找到 ${hits} 个搜索结果（用时 ${time} 毫秒）","hits":"找到 ${hits} 个搜索结果"}}</script><script src="/js/config.js"></script>
+
+    <meta name="description" content="有人的地方就有对比，游戏中自然也少不了排行榜。 当前项目设计目标是，每个服务器玩家数量为百万左右。每个玩家都有战力、经验等属性，战力最大值在50万以内。 现在期望能有战力排行榜，有以下几点需求：  全部角色参与排行，能实时知道某个角色的排名 排行榜显示前100名玩家详情  排名规则是战力越高排名越前，战力相同则比较经验，经验再相同则比较创建时间。 排行榜算法并不少见，这篇文章介绍的就不错。根据上述">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Java游戏服务器-百万规模实时排行榜实现（树形）">
+<meta property="og:url" content="https://qilu.me/2015/11/21/2015-11-21/index.html">
+<meta property="og:site_name" content="樂只君子">
+<meta property="og:description" content="有人的地方就有对比，游戏中自然也少不了排行榜。 当前项目设计目标是，每个服务器玩家数量为百万左右。每个玩家都有战力、经验等属性，战力最大值在50万以内。 现在期望能有战力排行榜，有以下几点需求：  全部角色参与排行，能实时知道某个角色的排名 排行榜显示前100名玩家详情  排名规则是战力越高排名越前，战力相同则比较经验，经验再相同则比较创建时间。 排行榜算法并不少见，这篇文章介绍的就不错。根据上述">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2015-11-21T02:00:00.000Z">
+<meta property="article:modified_time" content="2022-09-18T03:53:03.031Z">
+<meta property="article:author" content="Kaleo Feng">
+<meta property="article:tag" content="游戏开发">
+<meta property="article:tag" content="游戏服务器">
+<meta property="article:tag" content="Java">
+<meta property="article:tag" content="排行榜">
+<meta name="twitter:card" content="summary">
+
+
+<link rel="canonical" href="https://qilu.me/2015/11/21/2015-11-21/">
+
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh-CN","comments":true,"permalink":"https://qilu.me/2015/11/21/2015-11-21/","path":"2015/11/21/2015-11-21/","title":"Java游戏服务器-百万规模实时排行榜实现（树形）"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>Java游戏服务器-百万规模实时排行榜实现（树形） | 樂只君子</title>
+  
+
+
+
+
+
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">樂只君子</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">起舞弄清影</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="搜索" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a></li>
+  </ul>
+</nav>
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-overview-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Kaleo Feng</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">48</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">4</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">99</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://qilu.me/2015/11/21/2015-11-21/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Kaleo Feng">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="樂只君子">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="Java游戏服务器-百万规模实时排行榜实现（树形） | 樂只君子">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Java游戏服务器-百万规模实时排行榜实现（树形）
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">发表于</span>
+
+      <time title="创建时间：2015-11-21 10:00:00" itemprop="dateCreated datePublished" datetime="2015-11-21T10:00:00+08:00">2015-11-21</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">分类于</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/Tech/" itemprop="url" rel="index"><span itemprop="name">Tech</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><p>有人的地方就有对比，游戏中自然也少不了排行榜。</p>
+<p>当前项目设计目标是，每个服务器玩家数量为百万左右。每个玩家都有战力、经验等属性，战力最大值在50万以内。</p>
+<p>现在期望能有战力排行榜，有以下几点需求：</p>
+<ul>
+<li>全部角色参与排行，能实时知道某个角色的排名</li>
+<li>排行榜显示前100名玩家详情</li>
+</ul>
+<p>排名规则是战力越高排名越前，战力相同则比较经验，经验再相同则比较创建时间。</p>
+<p>排行榜算法并不少见，<a target="_blank" rel="noopener" href="https://www.cnblogs.com/weidagang2046/archive/2012/03/01/massive-user-ranking.html">这篇文章</a>介绍的就不错。根据上述需求分析，最适合采用文中的算法3，即树形分区设计，具体算法文中有详细介绍。</p>
+<p>采用该算法，时间复杂度在O(log(n))，在百万规模下空间消耗也就几十M。但有两个问题待解决：</p>
+<ul>
+<li>战力相同时如何确定具体排名</li>
+<li>如何获得TOP N</li>
+</ul>
+<p>针对问题1，假定游戏设计的战力相对均匀（尽管高战力显然更分散），那么战力相同的玩家数量会在一个较小规模内。依然以战力构建排行树，相同战力为同一个节点。节点可以存在一个有序列表，以经验、创建时间排序。这里有个小技巧，以玩家ID等效于创建时间，就直接记录了相应玩家，同时也保证了唯一性。这在增加删除（排名改变时）尤为有用。</p>
+<p>针对问题2，排行树算法决定了最终战力节点都是叶子节点，同时在叶子节点层，战力总是从左向右递增的。在树构建过程中，可以 ，将所有叶子节点连成一个双向链表。这样就可以做到既能得到前N名，也可以得到后N名，时间复杂度都是O(N)。</p>
+<p>下面show the code，完整代码请参看文末。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br><span class="line">179</span><br><span class="line">180</span><br><span class="line">181</span><br><span class="line">182</span><br><span class="line">183</span><br><span class="line">184</span><br><span class="line">185</span><br><span class="line">186</span><br><span class="line">187</span><br><span class="line">188</span><br><span class="line">189</span><br><span class="line">190</span><br><span class="line">191</span><br><span class="line">192</span><br><span class="line">193</span><br><span class="line">194</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">LeaderboardTree</span>&lt;Extra <span class="keyword">extends</span> <span class="title class_">LeaderboardExtra</span>&gt; &#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">class</span> <span class="title class_">LeaderboardNode</span> &#123;</span><br><span class="line">        <span class="keyword">public</span> <span class="type">int</span> <span class="variable">lowerKey</span> <span class="operator">=</span> <span class="number">0</span>;</span><br><span class="line">        <span class="keyword">public</span> <span class="type">int</span> <span class="variable">upperKey</span> <span class="operator">=</span> <span class="number">0</span>;</span><br><span class="line">        <span class="keyword">public</span> <span class="type">int</span> <span class="variable">number</span> <span class="operator">=</span> <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">public</span> ArrayList&lt;Extra&gt; extraList = <span class="keyword">new</span> <span class="title class_">ArrayList</span>&lt;Extra&gt;();</span><br><span class="line"></span><br><span class="line">        <span class="keyword">public</span> <span class="type">LeaderboardNode</span> <span class="variable">left</span> <span class="operator">=</span> <span class="literal">null</span>;</span><br><span class="line">        <span class="keyword">public</span> <span class="type">LeaderboardNode</span> <span class="variable">right</span> <span class="operator">=</span> <span class="literal">null</span>;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">public</span> <span class="type">LeaderboardNode</span> <span class="variable">prev</span> <span class="operator">=</span> <span class="literal">null</span>;</span><br><span class="line">        <span class="keyword">public</span> <span class="type">LeaderboardNode</span> <span class="variable">next</span> <span class="operator">=</span> <span class="literal">null</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="type">LeaderboardNode</span> <span class="variable">root</span> <span class="operator">=</span> <span class="literal">null</span>;</span><br><span class="line"></span><br><span class="line">    <span class="type">LeaderboardNode</span> <span class="variable">head</span> <span class="operator">=</span> <span class="literal">null</span>;</span><br><span class="line">    <span class="type">LeaderboardNode</span> <span class="variable">tail</span> <span class="operator">=</span> <span class="literal">null</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">setup</span><span class="params">(<span class="type">int</span> lowerKey, <span class="type">int</span> upperKey)</span> &#123;</span><br><span class="line">        root = setupNode(root, lowerKey, upperKey);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">insert</span><span class="params">(<span class="type">int</span> score, Extra extra)</span> &#123;</span><br><span class="line">        insertIntoNode(root, score, extra);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">remove</span><span class="params">(<span class="type">int</span> score, Extra extra)</span> &#123;</span><br><span class="line">        removeFromNode(root, score, extra);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">change</span><span class="params">(<span class="type">int</span> oldKey, <span class="type">int</span> newKey, Extra extra)</span> &#123;</span><br><span class="line">        remove(oldKey, extra);</span><br><span class="line">        insert(newKey, extra);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="type">int</span> <span class="title function_">getRanking</span><span class="params">(<span class="type">int</span> score, Extra extra)</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> getRankingOfNode(root, score, extra) + <span class="number">1</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> ArrayList&lt;LeaderboardData&gt; <span class="title function_">getTopN</span><span class="params">(<span class="type">int</span> n)</span> &#123;</span><br><span class="line">        ArrayList&lt;LeaderboardData&gt; dataList = <span class="keyword">new</span> <span class="title class_">ArrayList</span>&lt;LeaderboardData&gt;();</span><br><span class="line"></span><br><span class="line">        <span class="type">int</span> <span class="variable">count</span> <span class="operator">=</span> <span class="number">0</span>;</span><br><span class="line">        <span class="type">LeaderboardNode</span> <span class="variable">cursor</span> <span class="operator">=</span> tail;</span><br><span class="line">        <span class="keyword">while</span> (cursor != <span class="literal">null</span>) &#123;</span><br><span class="line">            <span class="keyword">for</span> (Extra extra : cursor.extraList) &#123;</span><br><span class="line">                <span class="type">LeaderboardData</span> <span class="variable">data</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">LeaderboardData</span>();</span><br><span class="line">                data.ranking = ++count;</span><br><span class="line">                data.key = cursor.lowerKey;</span><br><span class="line">                data.extra = extra;</span><br><span class="line">                dataList.add(data);</span><br><span class="line">                <span class="keyword">if</span> (count &gt;= n) &#123;</span><br><span class="line">                    <span class="keyword">return</span> dataList;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">            cursor = cursor.prev;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">return</span> dataList;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> LeaderboardNode <span class="title function_">setupNode</span><span class="params">(LeaderboardNode node, <span class="type">int</span> lowerKey, <span class="type">int</span> upperKey)</span> &#123;</span><br><span class="line">        <span class="keyword">if</span> (lowerKey &gt; upperKey) &#123;</span><br><span class="line">            <span class="keyword">return</span> <span class="literal">null</span>;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        node = <span class="keyword">new</span> <span class="title class_">LeaderboardNode</span>();</span><br><span class="line">        node.lowerKey = lowerKey;</span><br><span class="line">        node.upperKey = upperKey;</span><br><span class="line">        node.number = <span class="number">0</span>;</span><br><span class="line">        node.extraList.clear();</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (isLeafNode(node)) &#123;</span><br><span class="line">            <span class="keyword">if</span> (head == <span class="literal">null</span>) &#123;</span><br><span class="line">                head = node;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            <span class="keyword">if</span> (tail != <span class="literal">null</span>) &#123;</span><br><span class="line">                tail.next = node;</span><br><span class="line">                node.prev = tail;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            tail = node;</span><br><span class="line">            <span class="keyword">return</span> node;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (upperKey &gt; lowerKey) &#123;</span><br><span class="line">            <span class="keyword">final</span> <span class="type">int</span> <span class="variable">middleKey</span> <span class="operator">=</span> getMiddleKey(lowerKey, upperKey);</span><br><span class="line">            node.left = setupNode(node.left, lowerKey, middleKey);</span><br><span class="line">            node.right = setupNode(node.right, middleKey + <span class="number">1</span>, upperKey);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> node;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">void</span> <span class="title function_">insertIntoNode</span><span class="params">(LeaderboardNode node, <span class="type">int</span> score, Extra extra)</span> &#123;</span><br><span class="line">        <span class="keyword">if</span> (node == <span class="literal">null</span>) &#123;</span><br><span class="line">            <span class="keyword">return</span>;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (!isInsideNode(node, score)) &#123;</span><br><span class="line">            <span class="keyword">return</span>;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        ++node.number;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (isLeafNode(node)) &#123;</span><br><span class="line">            node.extraList.add(extra);</span><br><span class="line">            node.extraList.sort((Extra left, Extra right) -&gt; left.compareTo(right));</span><br><span class="line">            <span class="keyword">return</span>;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">final</span> <span class="type">int</span> <span class="variable">middleKey</span> <span class="operator">=</span> getMiddleKey(node.lowerKey, node.upperKey);</span><br><span class="line">        <span class="keyword">if</span> (score &lt;= middleKey) &#123;</span><br><span class="line">            insertIntoNode(node.left, score, extra);</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            insertIntoNode(node.right, score, extra);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">void</span> <span class="title function_">removeFromNode</span><span class="params">(LeaderboardNode node, <span class="type">int</span> score, Extra extra)</span> &#123;</span><br><span class="line">        <span class="keyword">if</span> (node == <span class="literal">null</span>) &#123;</span><br><span class="line">            <span class="keyword">return</span>;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (!isInsideNode(node, score)) &#123;</span><br><span class="line">            <span class="keyword">return</span>;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        --node.number;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (isLeafNode(node)) &#123;</span><br><span class="line">            node.extraList.remove(extra);</span><br><span class="line">            node.extraList.sort((Extra left, Extra right) -&gt; left.compareTo(right));</span><br><span class="line">            <span class="keyword">return</span>;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">final</span> <span class="type">int</span> <span class="variable">middleKey</span> <span class="operator">=</span> getMiddleKey(node.lowerKey, node.upperKey);</span><br><span class="line">        <span class="keyword">if</span> (score &lt;= middleKey) &#123;</span><br><span class="line">            removeFromNode(node.left, score, extra);</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            removeFromNode(node.right, score, extra);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="type">int</span> <span class="title function_">getRankingOfNode</span><span class="params">(LeaderboardNode node, <span class="type">int</span> score, Extra extra)</span> &#123;</span><br><span class="line">        <span class="type">int</span> <span class="variable">ranking</span> <span class="operator">=</span> <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (node == <span class="literal">null</span>) &#123;</span><br><span class="line">            <span class="keyword">return</span> ranking;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (score &lt; node.lowerKey) &#123;</span><br><span class="line">            ranking += node.number;</span><br><span class="line">            <span class="keyword">return</span> ranking;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (score &gt; node.upperKey) &#123;</span><br><span class="line">            ranking += <span class="number">0</span>;</span><br><span class="line">            <span class="keyword">return</span> ranking;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (isLeafNode(node)) &#123;</span><br><span class="line">            ranking += Math.max(node.extraList.indexOf(extra), <span class="number">0</span>);</span><br><span class="line">            <span class="keyword">return</span> ranking;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">final</span> <span class="type">int</span> <span class="variable">middleKey</span> <span class="operator">=</span> getMiddleKey(node.lowerKey, node.upperKey);</span><br><span class="line">        <span class="keyword">if</span> (score &lt;= middleKey) &#123;</span><br><span class="line">            ranking += node.right != <span class="literal">null</span> ? node.right.number : <span class="number">0</span>;</span><br><span class="line">            ranking += getRankingOfNode(node.left, score, extra);</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            ranking += getRankingOfNode(node.right, score, extra);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> ranking;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="type">int</span> <span class="title function_">getMiddleKey</span><span class="params">(<span class="type">int</span> lowerKey, <span class="type">int</span> upperKey)</span> &#123;</span><br><span class="line">        <span class="keyword">final</span> <span class="type">int</span> <span class="variable">middleKey</span> <span class="operator">=</span> lowerKey + ((upperKey - lowerKey) &gt;&gt; <span class="number">1</span>);</span><br><span class="line">        <span class="keyword">return</span> middleKey;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="type">boolean</span> <span class="title function_">isInsideNode</span><span class="params">(LeaderboardNode node, <span class="type">int</span> score)</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> score &gt;= node.lowerKey &amp;&amp; score &lt;= node.upperKey;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="type">boolean</span> <span class="title function_">isLeafNode</span><span class="params">(LeaderboardNode node)</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> node.lowerKey == node.upperKey;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>针对我们的需求，key就是战力，extra包含玩家经验和ID。</p>
+<p>采用这种做法，需要在服务器启动时重新构建排行树，先确定排行战力区间，然后依次插入每个玩家战力等数据。运行期间，玩家战力等改变时，先删除旧的排行，再插入新的排行。</p>
+<p>该算法在处理千万数据时依然有效，但再大规模性能会不足。如果战力分布不均，同战力玩家过多，性能也会大幅退化，可将ArrayList替换为更高效的数据结构，或变通需求。</p>
+<p>公共库仓库：<a target="_blank" rel="noopener" href="https://github.com/KaleoFeng/JMetazion.git">JMetazion</a></p>
+<p>服务器示例仓库：<a target="_blank" rel="noopener" href="https://github.com/KaleoFeng/JGameDemo.git">JGameDemo</a></p>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/%E6%B8%B8%E6%88%8F%E5%BC%80%E5%8F%91/" rel="tag"># 游戏开发</a>
+              <a href="/tags/%E6%B8%B8%E6%88%8F%E6%9C%8D%E5%8A%A1%E5%99%A8/" rel="tag"># 游戏服务器</a>
+              <a href="/tags/Java/" rel="tag"># Java</a>
+              <a href="/tags/%E6%8E%92%E8%A1%8C%E6%A6%9C/" rel="tag"># 排行榜</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2015/10/08/2015-10-08/" rel="prev" title="Java游戏服务器-数据库表存取封装">
+                  <i class="fa fa-angle-left"></i> Java游戏服务器-数据库表存取封装
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2015/12/12/2015-12-12/" rel="next" title="Java游戏服务器-百万规模实时排行榜实现（桶式）">
+                  Java游戏服务器-百万规模实时排行榜实现（桶式） <i class="fa fa-angle-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2023</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">Kaleo Feng</span>
+  </div>
+  <div class="powered-by">由 <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a> 强力驱动
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="返回顶部">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous"></script>
+<script src="/js/comments.js"></script><script src="/js/utils.js"></script><script src="/js/motion.js"></script><script src="/js/schemes/muse.js"></script><script src="/js/next-boot.js"></script>
+
+  
+
+
+
+
+
+
+  
+
+
+
+
+
+</body>
+</html>

@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 6.3.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" integrity="sha256-CTSx/A06dm1B063156EVh15m6Y67pAjZZaQc89LLSrU=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"qilu.me","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.18.2","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":{"enable":false,"style":null},"fold":{"enable":false,"height":500},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"prism":false,"i18n":{"placeholder":"搜索...","empty":"没有找到任何搜索结果：${query}","hits_time":"找到 ${hits} 个搜索结果（用时 ${time} 毫秒）","hits":"找到 ${hits} 个搜索结果"}}</script><script src="/js/config.js"></script>
+
+    <meta name="description" content="在TCP&#x2F;IP协议族中，链路层主要有三个目的:  为IP模块发送和接受IP数据报  为ARP模块发送ARP请求和接收ARP应答  为RARP模块发送RARP请求和接收RARP应答   网络层的数据到达链路层，会被加上帧首部和帧尾部封装成以太网帧。不同的协议标准定义了不同大小和格式的帧首部，但通常都会包含6个字节的目的MAC地址和6个字节的源MAC地址。帧尾部FCS是采用CRC的帧校验序列">
+<meta property="og:type" content="article">
+<meta property="og:title" content="网络编程之TCP&#x2F;IP协议族-链路层Ethernet II和802.2&#x2F;802.3 SNAP协议">
+<meta property="og:url" content="https://qilu.me/2014/06/08/2014-06-08/index.html">
+<meta property="og:site_name" content="樂只君子">
+<meta property="og:description" content="在TCP&#x2F;IP协议族中，链路层主要有三个目的:  为IP模块发送和接受IP数据报  为ARP模块发送ARP请求和接收ARP应答  为RARP模块发送RARP请求和接收RARP应答   网络层的数据到达链路层，会被加上帧首部和帧尾部封装成以太网帧。不同的协议标准定义了不同大小和格式的帧首部，但通常都会包含6个字节的目的MAC地址和6个字节的源MAC地址。帧尾部FCS是采用CRC的帧校验序列">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://qilu.me/2014-06-08/ethernet_protocal.jpg">
+<meta property="og:image" content="https://qilu.me/2014-06-08/tcpdump_sync_and_ack.png">
+<meta property="og:image" content="https://qilu.me/2014-06-08/tcpdump_arp.png">
+<meta property="article:published_time" content="2014-06-08T13:00:00.000Z">
+<meta property="article:modified_time" content="2022-09-18T03:53:03.019Z">
+<meta property="article:author" content="Kaleo Feng">
+<meta property="article:tag" content="TCPIP">
+<meta property="article:tag" content="网络编程">
+<meta property="article:tag" content="链路层">
+<meta property="article:tag" content="以太网">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://qilu.me/2014-06-08/ethernet_protocal.jpg">
+
+
+<link rel="canonical" href="https://qilu.me/2014/06/08/2014-06-08/">
+
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh-CN","comments":true,"permalink":"https://qilu.me/2014/06/08/2014-06-08/","path":"2014/06/08/2014-06-08/","title":"网络编程之TCP/IP协议族-链路层Ethernet II和802.2/802.3 SNAP协议"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>网络编程之TCP/IP协议族-链路层Ethernet II和802.2/802.3 SNAP协议 | 樂只君子</title>
+  
+
+
+
+
+
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">樂只君子</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">起舞弄清影</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="搜索" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a></li>
+  </ul>
+</nav>
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-overview-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Kaleo Feng</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">48</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">4</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">99</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://qilu.me/2014/06/08/2014-06-08/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Kaleo Feng">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="樂只君子">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="网络编程之TCP/IP协议族-链路层Ethernet II和802.2/802.3 SNAP协议 | 樂只君子">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          网络编程之TCP/IP协议族-链路层Ethernet II和802.2/802.3 SNAP协议
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">发表于</span>
+
+      <time title="创建时间：2014-06-08 21:00:00" itemprop="dateCreated datePublished" datetime="2014-06-08T21:00:00+08:00">2014-06-08</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">分类于</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/Lore/" itemprop="url" rel="index"><span itemprop="name">Lore</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><p>在TCP&#x2F;IP协议族中，链路层主要有三个目的:</p>
+<ol>
+<li><p>为IP模块发送和接受IP数据报</p>
+</li>
+<li><p>为ARP模块发送ARP请求和接收ARP应答</p>
+</li>
+<li><p>为RARP模块发送RARP请求和接收RARP应答</p>
+</li>
+</ol>
+<p>网络层的数据到达链路层，会被加上帧首部和帧尾部封装成以太网帧。不同的协议标准定义了不同大小和格式的帧首部，但通常都会包含6个字节的目的MAC地址和6个字节的源MAC地址。帧尾部FCS是采用CRC的帧校验序列。帧首部前面还有一个8字节的前导字，但通常不将其考虑在内。</p>
+<p>下图（来自网络）展示了最常见的两种协议的帧格式，分别是802.2&#x2F;802.3 SNAP和Ethernet II。<br><img src="/2014-06-08/ethernet_protocal.jpg" alt="Image Title"></p>
+<p>Ethernet II:  帧首部包含6个字节的目的MAC地址、6个字节的源MAC地址和2个字节的类型域。</p>
+<ul>
+<li>类型域：定义了上层协议类型，如0x0800是IP协议，0x0806是ARP协议。</li>
+</ul>
+<p>802.2&#x2F;802.3 SNAP: 帧首部包含各6个字节的目的MAC地址和源MAC地址、2个字节的长度域、各1个字节的DSAP和SSAP,，1个字节的控制字段，3个字节的组织码和2个字节的类型域。</p>
+<ul>
+<li><p>长度域：表示数据长度。标准规定帧最小长度是64字节，所以数据长度最小是46字节，最大长度一般为1500字节。不足46字节必须进行填充，但填充长度不包含在长度域中。如果网卡同时支持该协议和Ethernet协议，长度域也被用来区分两种帧。因为数据字段的最大长度为1500字节，所以不超过0x05DC（1500）的值说明它是长度域（IEEE802.3），否则是类型域（Ethernet II）。</p>
+</li>
+<li><p>DSAP和SSAP：分别是目的和源服务访问点，被固定设为0xAA。</p>
+</li>
+<li><p>控制字段：被固定设为0x03</p>
+</li>
+<li><p>组织码：网络适配器厂商代码，通常与源MAC的前三个字节相同。</p>
+</li>
+<li><p>类型域：与Ethernet II相同。</p>
+</li>
+</ul>
+<p>可以看到，数据帧长度范围是64-1518字节，Ethernet II帧首部长度是14字节，802.2&#x2F;802.3 SNAP帧首部长度是22字节，帧尾部同是4字节。Ethernet II数据长度范围是46-1500字节，802.2&#x2F;802.3 SNAP数据长度范围是38-1492字节。Ethernet II是以太网现在的事实标准。</p>
+<p>此处有几个概念。</p>
+<ul>
+<li><p>MTU：最大传输单元，即协议层所能通过的最大数据包大小。由上述，目前以太网采用Ethernet II，MTU是1500字节。如果上层传输的数据大于MTU，则需要分片。</p>
+</li>
+<li><p>PMTU：数据传输可能经过多个网络，每个网络的的链路层MTU可能不同，其中的最小值，被称作路径最大传输单元。如果传输的数据大于PMTU，则会在传输过程中被分片或者丢弃。</p>
+</li>
+</ul>
+<p>下面是使用tcpdump捕获到的TCP三次握手数据包，-e输出了链路层的头部信息，不包括4字节的帧尾部FCS。<br><img src="/2014-06-08/tcpdump_sync_and_ack.png" alt="Image Title"></p>
+<p>观察第一个数据包。10:14:43.153311是操作时间，8c:89:a5:65:0a:fa是源MAC地址，d2:b3:a8:28:32:b0是目的MAC地址，0x0800表明上层采用IPv4协议，length 66表示帧首部和数据域总长度为66字节，帧首部是14字节，所以数据域长度为52字节，即IP分组长度。</p>
+<p>再看一个ARP的例子。<br><img src="/2014-06-08/tcpdump_arp.png" alt="Image Title"></p>
+<p>8c:89:a5:88:1e:b8是源MAC地址，ff:ff:ff:ff:ff:ff是目的MAC地址说明是广播，0x0806表明上层采用ARP协议，length 60表示帧首部和数据域总长度为60字节，帧首部是14字节，所以数据域长度为46字节。APR数据包长度固定是28字节，后面18字节全为0是填充数据，以符合最小帧长度要求。</p>
+<p>这个APR包是IP为192.168.3.36的主机A向所在子网广播请求IP为192.168.3.44的主机B的MAC地址。主机B收到此广播后，会将自己的MAC地址利用ARP响应包传给主机A，并更新自己的ARP缓存，也就是同时将主机A的IP地址与MAC地址对保存起来，供以后使用。主机A获得主机B的MAC地址后，就可以与主机B通信了。同时，主机A也将主机B的IP地址与MAC地址对保存在自己的ARP缓存内。</p>
+<p>以太网使用MAC地址来标识主机，链路层提供两个相邻节点间的数据传输。网络层的数据包中包含目的IP地址，当需要传输时，链路层首先在ARP缓存中查找IP地址对应的MAC地址，如果找不到则触发ARP请求将IP地址转换成MAC地址。需要注意的是，如果目的IP与本机在同一个子网，得到的MAC地址即是目的主机地址，否则是网关地址。在数据帧传输过程中，MAC地址会不断改变，源MAC地址始终是上一个主机&#x2F;路由器的地址，目的MAC地址是下一个主机&#x2F;路由器的地址，直到到达目的主机或被丢弃。</p>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/TCPIP/" rel="tag"># TCPIP</a>
+              <a href="/tags/%E7%BD%91%E7%BB%9C%E7%BC%96%E7%A8%8B/" rel="tag"># 网络编程</a>
+              <a href="/tags/%E9%93%BE%E8%B7%AF%E5%B1%82/" rel="tag"># 链路层</a>
+              <a href="/tags/%E4%BB%A5%E5%A4%AA%E7%BD%91/" rel="tag"># 以太网</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2014/05/27/2014-05-27/" rel="prev" title="网络编程之TCP/IP协议族-概述">
+                  <i class="fa fa-angle-left"></i> 网络编程之TCP/IP协议族-概述
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2014/06/21/2014-06-21/" rel="next" title="网络编程之TCP/IP协议族-网络层IP协议">
+                  网络编程之TCP/IP协议族-网络层IP协议 <i class="fa fa-angle-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2023</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">Kaleo Feng</span>
+  </div>
+  <div class="powered-by">由 <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a> 强力驱动
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="返回顶部">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous"></script>
+<script src="/js/comments.js"></script><script src="/js/utils.js"></script><script src="/js/motion.js"></script><script src="/js/schemes/muse.js"></script><script src="/js/next-boot.js"></script>
+
+  
+
+
+
+
+
+
+  
+
+
+
+
+
+</body>
+</html>

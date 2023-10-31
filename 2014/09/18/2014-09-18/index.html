@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 6.3.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" integrity="sha256-CTSx/A06dm1B063156EVh15m6Y67pAjZZaQc89LLSrU=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"qilu.me","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.18.2","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":{"enable":false,"style":null},"fold":{"enable":false,"height":500},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"prism":false,"i18n":{"placeholder":"搜索...","empty":"没有找到任何搜索结果：${query}","hits_time":"找到 ${hits} 个搜索结果（用时 ${time} 毫秒）","hits":"找到 ${hits} 个搜索结果"}}</script><script src="/js/config.js"></script>
+
+    <meta name="description" content="Lua是现在比较常用的一种脚本语言，尤其在游戏开发领域。平时经常需要将C++的类、函数、变量等导出到Lua，以在脚本中编写逻辑。有很多现有的库，如LuaBind、LuaPlus、ToLua++等，可以实现该功能。下面简要描述下原理，假定读者对Lua有基本的掌握。 注册C++类到Lua有几个步骤： 1.注册C++类定义  A.添加一个以类名命名的table到Lua全局表。  B.添加一个以类名命名的">
+<meta property="og:type" content="article">
+<meta property="og:title" content="导出C++到LUA">
+<meta property="og:url" content="https://qilu.me/2014/09/18/2014-09-18/index.html">
+<meta property="og:site_name" content="樂只君子">
+<meta property="og:description" content="Lua是现在比较常用的一种脚本语言，尤其在游戏开发领域。平时经常需要将C++的类、函数、变量等导出到Lua，以在脚本中编写逻辑。有很多现有的库，如LuaBind、LuaPlus、ToLua++等，可以实现该功能。下面简要描述下原理，假定读者对Lua有基本的掌握。 注册C++类到Lua有几个步骤： 1.注册C++类定义  A.添加一个以类名命名的table到Lua全局表。  B.添加一个以类名命名的">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2014-09-18T13:00:00.000Z">
+<meta property="article:modified_time" content="2022-09-18T03:53:03.024Z">
+<meta property="article:author" content="Kaleo Feng">
+<meta property="article:tag" content="Cpp">
+<meta property="article:tag" content="Lua">
+<meta name="twitter:card" content="summary">
+
+
+<link rel="canonical" href="https://qilu.me/2014/09/18/2014-09-18/">
+
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh-CN","comments":true,"permalink":"https://qilu.me/2014/09/18/2014-09-18/","path":"2014/09/18/2014-09-18/","title":"导出C++到LUA"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>导出C++到LUA | 樂只君子</title>
+  
+
+
+
+
+
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">樂只君子</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">起舞弄清影</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="搜索" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a></li>
+  </ul>
+</nav>
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-overview-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Kaleo Feng</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">48</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">4</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">99</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://qilu.me/2014/09/18/2014-09-18/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Kaleo Feng">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="樂只君子">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="导出C++到LUA | 樂只君子">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          导出C++到LUA
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">发表于</span>
+
+      <time title="创建时间：2014-09-18 21:00:00" itemprop="dateCreated datePublished" datetime="2014-09-18T21:00:00+08:00">2014-09-18</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">分类于</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/Tech/" itemprop="url" rel="index"><span itemprop="name">Tech</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><p>Lua是现在比较常用的一种脚本语言，尤其在游戏开发领域。平时经常需要将C++的类、函数、变量等导出到Lua，以在脚本中编写逻辑。有很多现有的库，如LuaBind、LuaPlus、ToLua++等，可以实现该功能。下面简要描述下原理，假定读者对Lua有基本的掌握。</p>
+<p>注册C++类到Lua有几个步骤：</p>
+<p>1.注册C++类定义</p>
+<ul>
+<li><p>A.添加一个以类名命名的table到Lua全局表。</p>
+</li>
+<li><p>B.添加一个以类名命名的matatable，并将其设为A中table的matatable。接下来的类成员变量和函数都会添加到这个metatable中。</p>
+</li>
+</ul>
+<p>2.注册C++类成员变量</p>
+<ul>
+<li><p>A.设置1.B中metatable的**__index<strong>、</strong>__newindex**等metamethod为实现了get、set等操作的c函数。Lua脚本中索引类成员变量进行取值或设值操作时，将调用对应的的c函数。</p>
+</li>
+<li><p>B.将类成员变量以变量名为键，以成员变量偏移为值，添加到1.B的metatable中。为了方便2.A的get、set等C函数操作，我们可能对该数据用结构体做数据封装。</p>
+</li>
+</ul>
+<p>3.注册C++成员函数</p>
+<ul>
+<li>A.与2.B类似，但我们以函数名为键，以一个ccloure作为值。该closure包括一个类似get&#x2F;set的以函数偏移作为upvalue的c函数。同样为了该c函数的操作方便，我们可能对该upvalue用结构体做数据封装。</li>
+</ul>
+<p>4.注册C++类实例</p>
+<ul>
+<li>A. 创建一个userdata来保存该实例地址，同样也可能用结构体做数据封装，并设置1.B的metatable作为该userdata的metatable。该userdata会以实例名为键添加到Lua全局表。</li>
+</ul>
+<p>下面举例说明实际调用流程。</p>
+<ul>
+<li><p>假设C++中有如下类A，其有成员函数f，成员变量v，A的一个实例为a。我们已经进行了上述工作将所有数据注册到Lua脚本。</p>
+</li>
+<li><p>当在脚本中调用<code>a.f()</code>时，a在Lua全局表，实际为4.A所述userdata，userdata中没有f，则到其1.B中metatable查找，由于metable设置了**__index**元方法，会使用2.A中的get函数将f为键值的即3.A中所述cclosure放到栈顶，然后进行()函数调用，执行3.A中C函数，该C函数取得a实例地址aa，根据upvalue取得函数偏移fo，最终调用<code>aa-&gt;fo()</code>，即成功执行。</p>
+</li>
+<li><p>当在脚本使用<code>local data = a.v</code>时，流程类似，但会在get函数中根据实例地址aa和成员变量偏移fo取<code>aa-&gt;fo</code>值设给data，而不进行后续操作。</p>
+</li>
+<li><p>当在脚本使用<code>a.v = data</code>时，流程类似，但会使用**__newindex**元方法set函数，实例地址aa和成员变量偏移vo得到<code>aa-&gt;vo</code>并设置data值。</p>
+</li>
+</ul>
+<p>理解了类似方法和思想，再添加更多特性比如继承类注册、全局函数注册等，就相对容易了。</p>
+<p>本文导出方法参考了网络上的部分实现，代码在<a target="_blank" rel="noopener" href="https://github.com/KaleoFeng/MetaLua" title="Github">这里</a>。</p>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Cpp/" rel="tag"># Cpp</a>
+              <a href="/tags/Lua/" rel="tag"># Lua</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2014/08/20/2014-08-20/" rel="prev" title="C++11封装Linux内核版红黑树">
+                  <i class="fa fa-angle-left"></i> C++11封装Linux内核版红黑树
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2014/10/26/2014-10-26/" rel="next" title="MMO游戏服务器MetazionWorld架构及实现">
+                  MMO游戏服务器MetazionWorld架构及实现 <i class="fa fa-angle-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2023</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">Kaleo Feng</span>
+  </div>
+  <div class="powered-by">由 <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a> 强力驱动
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="返回顶部">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous"></script>
+<script src="/js/comments.js"></script><script src="/js/utils.js"></script><script src="/js/motion.js"></script><script src="/js/schemes/muse.js"></script><script src="/js/next-boot.js"></script>
+
+  
+
+
+
+
+
+
+  
+
+
+
+
+
+</body>
+</html>
